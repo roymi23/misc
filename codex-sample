@@ -346,3 +346,154 @@ public class PrimeCheck {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+package com.ford.gdia.hvbd.util;
+
+import java.util.Scanner;
+import java.util.regex.Matcher;
+
+public class PasswordValidator {
+
+    public static void main(String[] args) {
+        String password = "Test@1234";
+        String response = "";
+
+        while(response.equalsIgnoreCase("yes") || response.isEmpty()) {
+            // Prompt the user for a password to validate
+            String input = "Please enter a password to validate: ";
+            clearConsole();
+            String confirmation = "Do you want to validate another password? (yes/no)";
+            System.out.println(input);
+            Scanner scanner = new Scanner(System.in);
+            password = scanner.nextLine();
+
+            if (isValidPassword(password)) {
+                System.out.println("Password is valid.");
+            } else {
+                System.out.println("Password is invalid.");
+            }
+
+            System.out.println(confirmation);
+            response = scanner.nextLine().trim().toLowerCase();
+        }
+
+    }
+
+    private static void clearConsole() {
+        System.out.print("\033[H\033[2J"); // ANSI escape code to clear console
+        System.out.flush(); // Flush the output buffer
+    }
+
+    private static boolean isValidPassword(String password) {
+
+        String regexPattern = "^(?=.*[0-9])" +         // at least one digit
+                              "(?=.*[a-z])" +         // at least one lowercase letter
+                              "(?=.*[A-Z])" +         // at least one uppercase letter
+                              "(?=.*[@#$%^&+=])" +    // at least one special character
+                              "(?=\\S+$)" +           // no whitespace
+                              ".{8,}$";
+        // at least 8 characters
+        Matcher matcher = java.util.regex.Pattern.compile(regexPattern).matcher(password);
+        return matcher.matches();
+
+    }
+
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+package com.ford.gdia.hvbd.util;
+
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+public class IntStreamStatistics {
+
+    public static void main(String[] args) {
+        int[] numbers = {1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 10};
+
+        // Calculate Mean (Average)
+        double mean = IntStream.of(numbers)
+                .average()
+                .orElse(Double.NaN); // Handle empty stream
+
+        System.out.println("Mean: " + mean);
+
+        // Calculate Median
+        List<Integer> sortedNumbers = IntStream.of(numbers)
+                .sorted()
+                .boxed() // Convert to Stream<Integer>
+                .collect(Collectors.toList());
+
+        double median;
+        int size = sortedNumbers.size();
+        if (size % 2 == 0) {
+            // Even number of elements, average of two middle elements
+            median = (sortedNumbers.get(size / 2 - 1) + sortedNumbers.get(size / 2)) / 2.0;
+        } else {
+            // Odd number of elements, middle element
+            median = sortedNumbers.get(size / 2);
+        }
+        System.out.println("Median: " + median);
+
+        // Calculate Mode
+        Map<Integer, Long> frequencyMap = IntStream.of(numbers)
+                .boxed()
+                .collect(Collectors.groupingBy(i -> i, Collectors.counting()));
+
+        long maxFrequency = frequencyMap.values().stream()
+                .mapToLong(Long::longValue)
+                .max()
+                .orElse(0); // Handle empty stream
+
+        List<Integer> modes = frequencyMap.entrySet().stream()
+                .filter(entry -> entry.getValue() == maxFrequency)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+        System.out.println("Mode(s): " + modes);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+package com.ford.gdia.hvbd.util;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
+public class TwoSum {
+
+    public static void main(String[] args) {
+        int[] numbers = {2, 7, 11, 15};
+        int target = 9;
+        int[] result = twoSum(numbers, target);
+        if (result != null) {
+            System.out.println("Indices: " + result[0] + ", " + result[1]);
+        } else {
+            System.out.println("No two sum solution found.");
+        }
+    }
+
+    private static int[] twoSum(int[] numbers, int target) {
+        if (numbers == null || numbers.length < 2) {
+            return null; // Not
+        }
+        Map<Integer, Integer> map = new HashMap<>();
+        for (int i=0; i<numbers.length;i++) {
+            int complement = target - numbers[i];
+            if (map.containsKey(complement)){
+                return new int[]{complement, numbers[i]};
+            }
+            map.put(numbers[i], i);
+        }
+        return null; // No two sum solution found
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
