@@ -1,0 +1,348 @@
+public class FactorialRecursion {
+
+    // Recursive method to calculate factorial
+    public static long factorial(int n) {
+        if (n < 0) {
+            throw new IllegalArgumentException("Factorial is not defined for negative numbers.");
+        }
+        if (n == 0 || n == 1) {
+            return 1;
+        }
+        return n * factorial(n - 1);
+    }
+
+    // Main method to test the recursion
+    public static void main(String[] args) {
+        int number = 5; // Change this to test other values
+        long result = factorial(number);
+        System.out.println("Factorial of " + number + " is: " + result);
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+package com.practise.dsa;
+
+public class FibonacciRecursion {
+
+    // Recursive method to calculate nth Fibonacci number
+    public static int fibonacci(int n) {
+        if (n < 0) {
+            throw new IllegalArgumentException("Index cannot be negative.");
+        }
+        if (n == 0) return 0;
+        if (n == 1) return 1;
+        return fibonacci(n - 1) + fibonacci(n - 2);
+    }
+
+    // Method to print the Fibonacci sequence up to n terms
+    public static void printFibonacciSequence(int terms) {
+        System.out.println("Fibonacci sequence up to " + terms + " terms:");
+        for (int i = 0; i < terms; i++) {
+            System.out.print(fibonacci(i) + " ");
+        }
+        System.out.println();
+    }
+
+    public static void main(String[] args) {
+        int terms = 10; // Change this to generate more terms
+        printFibonacciSequence(terms);
+    }
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+package com.practise.dsa;
+
+import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class IPAddressValidation {
+
+    // Regex for digit from 0 to 255.
+    private static  String zeroTo255
+            = "(\\d{1,2}|(0|1)\\"
+            + "d{2}|2[0-4]\\d|25[0-5])";
+
+    // Regex for a digit from 0 to 255 and
+    // followed by a dot, repeat 4 times.
+    // this is the regex to validate an IP address.
+    public static String regex
+            = zeroTo255 + "\\."
+            + zeroTo255 + "\\."
+            + zeroTo255 + "\\."
+            + zeroTo255;
+
+    public static void main(String[] args) {
+
+//        Scanner sC = new Scanner(System.in);
+//
+//        System.out.println("Please enter your Ip Address.");
+//
+//        String input = sC.nextLine();
+//
+//        System.out.println("Given string: " + input + " is a valid IPAddress? " + isValidIpAddress(input));
+
+        Scanner in = new Scanner(System.in);
+        System.out.println("Please enter your Ip Address.");
+        while(in.hasNext()){
+            String IP = in.next();
+            System.out.println(IP.matches(regex));
+        }
+    }
+
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+package com.practise.dsa;
+
+import java.util.HashMap;
+
+class LRUCache {
+    private class Node {
+        int key, value;
+        Node prev, next;
+        Node(int k, int v) { key = k; value = v; }
+    }
+
+    private final int capacity;
+    private final HashMap<Integer, Node> map;
+    private final Node head, tail;
+
+    public LRUCache(int capacity) {
+        this.capacity = capacity;
+        map = new HashMap<>();
+        head = new Node(0, 0); // dummy head
+        tail = new Node(0, 0); // dummy tail
+        head.next = tail;
+        tail.prev = head;
+    }
+
+    public int get(int key) {
+        if (!map.containsKey(key)) return -1;
+        Node node = map.get(key);
+        remove(node);
+        insertToFront(node);
+        return node.value;
+    }
+
+    public void put(int key, int value) {
+        if (map.containsKey(key)) {
+            remove(map.get(key));
+        }
+        if (map.size() == capacity) {
+            remove(tail.prev); // remove LRU
+        }
+        insertToFront(new Node(key, value));
+    }
+
+    private void remove(Node node) {
+        map.remove(node.key);
+        node.prev.next = node.next;
+        node.next.prev = node.prev;
+    }
+
+    private void insertToFront(Node node) {
+        map.put(node.key, node);
+        node.next = head.next;
+        node.prev = head;
+        head.next.prev = node;
+        head.next = node;
+    }
+
+    // For testing
+    public static void main(String[] args) {
+        LRUCache cache = new LRUCache(2);
+        cache.put(1, 1); // cache = {1=1}
+        cache.put(2, 2); // cache = {1=1, 2=2}
+        System.out.println(cache.get(1)); // returns 1
+        cache.put(3, 3); // evicts key 2, cache = {1=1, 3=3}
+        System.out.println(cache.get(2)); // returns -1
+        cache.put(4, 4); // evicts key 1, cache = {4=4, 3=3}
+        System.out.println(cache.get(1)); // returns -1
+        System.out.println(cache.get(3)); // returns 3
+        System.out.println(cache.get(4)); // returns 4
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+package com.practise.dsa;
+
+import java.sql.SQLOutput;
+import java.util.Scanner;
+
+public class MaxSubArray {
+
+    public static void main(String[] args) {
+
+        Scanner sC = new Scanner(System.in);
+        System.out.println("Please enter your numbers separated by commas..");
+        String inputString = sC.nextLine();
+        String[] tokens = inputString.split(",");
+        int[] nums = new int[tokens.length];
+        for (int i = 0; i < tokens.length; i++) {
+            try {
+                nums[i] = Integer.parseInt(tokens[i]);
+            } catch (NumberFormatException e) {
+                //
+            }
+        }
+
+        System.out.println("Max subarray: " + maximumSubArray(nums));
+
+    }
+
+    private static int maximumSubArray(int[] nums) {
+
+        int maxEndingHere = 0;
+        int maxSumSoFar = 0;
+        for (int i = 0; i < nums.length; i++) {
+
+            maxEndingHere = Math.max(nums[i], maxEndingHere + nums[i]);
+            maxSumSoFar = Math.max(maxSumSoFar, maxEndingHere);
+
+        }
+        return maxSumSoFar;
+    }
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+package com.practise.dsa;
+
+public class PalindromeRecursion {
+
+    // Recursive method to check if a string is a palindrome
+    public static boolean isPalindrome(String str, int left, int right) {
+        if (left >= right) {
+            return true; // Base case: all characters matched
+        }
+        if (str.charAt(left) != str.charAt(right)) {
+            return false; // Mismatch found
+        }
+        return isPalindrome(str, left + 1, right - 1); // Move inward
+    }
+
+    // Wrapper method for cleaner usage
+    public static boolean isPalindrome(String str) {
+        if (str == null) return false;
+        str = str.replaceAll("[^a-zA-Z0-9]", "").toLowerCase(); // Normalize input
+        System.out.println("Normalize string = " + str);
+        return isPalindrome(str, 0, str.length() - 1);
+    }
+
+    public static void main(String[] args) {
+        String input = "RaceCar"; // Try other examples like "A man, a plan, a canal: Panama"
+        if (isPalindrome(input)) {
+            System.out.println("\"" + input + "\" is a palindrome.");
+        } else {
+            System.out.println("\"" + input + "\" is not a palindrome.");
+        }
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+package com.practise.dsa;
+
+import org.springframework.util.StringUtils;
+
+public class PalindromeCheckStringReverse {
+
+    public static void main(String[] args) {
+        String input = "A man, a plan, a canal: Panama";
+        System.out.println(input + " is palindrome? " + isPalindrome(input));
+    }
+
+    private static boolean isPalindrome(String input) {
+        input = input.replaceAll("[^a-zA-Z0-9]", "");
+        String reversedString = new StringBuilder(input).reverse().toString();
+        return input.equalsIgnoreCase(reversedString);
+    }
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+package com.practise.dsa;
+
+import java.io.*;
+import java.util.*;
+import java.util.stream.IntStream;
+import java.lang.reflect.Method;
+
+public class PrimeCheck {
+
+    public static void main(String[] args) {
+        InputStream in = System.in;
+        BufferedReader br=new BufferedReader(new InputStreamReader(in));
+        try {
+            int n1=Integer.parseInt(br.readLine());
+            int n2=Integer.parseInt(br.readLine());
+            int n3=Integer.parseInt(br.readLine());
+            int n4=Integer.parseInt(br.readLine());
+            int n5=Integer.parseInt(br.readLine());
+            Prime.checkPrime(n1);
+            Prime.checkPrime(n1,n2);
+            Prime.checkPrime(n1,n2,n3);
+            Prime.checkPrime(n1,n2,n3,n4,n5);
+
+            br.close();
+        }
+        catch(Exception e) {
+
+        }
+
+
+
+        Method[] methods=Prime.class.getDeclaredMethods();
+        Set<String> set=new HashSet<>();
+        boolean overload=false;
+        for(int i=0;i<methods.length;i++)
+        {
+            if(set.contains(methods[i].getName()))
+            {
+                overload=true;
+                break;
+            }
+            set.add(methods[i].getName());
+
+        }
+        try {
+            if(overload)
+            {
+                throw new Exception("Overloading not allowed");
+            }
+        }
+        catch(Exception e)
+        {
+            System.out.println(e);
+        }
+    }
+
+
+    static class Prime {
+
+        static void checkPrime(int...integers) {
+
+            IntStream.of(integers).forEach(n-> {
+                int factors = 0;
+                for (int i=0; i<=n;i++){
+                    if (n%i == 0)
+                        factors++;
+                }
+                if (factors > 2) {
+                    System.out.print(n);
+                }
+                System.out.print("\n");
+            });
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
