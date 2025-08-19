@@ -21,6 +21,51 @@ public class FactorialRecursion {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+package com.example.railroad;
+
+import java.util.Scanner;
+
+public class BinaryGapFinder {
+    public static int findBinaryGap(int n) {
+        String binary = Integer.toBinaryString(n);
+        System.out.println("Binary reprn. of number " + n + " is " + binary);
+        int maxGap = 0;
+        int currentGap = 0;
+        boolean counting = false;
+
+        for (char bit : binary.toCharArray()) {
+            if (bit == '1') {
+                if (counting) {
+                    maxGap = Math.max(maxGap, currentGap);
+                }
+                counting = true;
+                currentGap = 0;
+            } else if (counting) {
+                currentGap++;
+            }
+        }
+
+        return maxGap;
+    }
+
+    public static void main(String[] args) {
+        int number = 529;
+        Scanner scanner = new Scanner(System.in);
+        String ans = "Y";
+        while (ans.equalsIgnoreCase("y")) {
+            System.out.println("Please enter your number..");
+            number = scanner.nextInt();
+            System.out.println("Binary gap of " + number + " is: " + findBinaryGap(number));
+            System.out.println("Do you want to continue?");
+            ans = scanner.nextLine();
+        }
+
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 package com.practise.dsa;
 
 public class FibonacciRecursion {
@@ -495,5 +540,218 @@ public class TwoSum {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+package com.example.railroad;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class EmailValidator {
+
+    // Define the regex pattern for a valid email
+    private static final String EMAIL_REGEX =
+            "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$";
+
+    // Compile the regex into a Pattern
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(EMAIL_REGEX);
+
+    // Method to validate email
+    public static boolean isValidEmail(String email) {
+        if (email == null) return false;
+        Matcher matcher = EMAIL_PATTERN.matcher(email);
+        return matcher.matches();
+    }
+
+    // Test the validator
+    public static void main(String[] args) {
+        String[] testEmails = {
+                "user@example.com",
+                "user.name+tag+sorting@example.co.uk",
+                "user@subdomain.example.com",
+                "invalid-email@.com",
+                "another.invalid@com",
+                "missing@domain"
+        };
+
+        for (String email : testEmails) {
+            System.out.printf("Email: %-35s Valid: %b%n", email, isValidEmail(email));
+        }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+package com.example.railroad;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+/**
+ * Implement the mean, median, mode and range methods of the Calculator class in Java 8 Functional
+ * style with the minimum code necessary to pass the tests.
+ */
+class FunctionalTest {
+
+    @Test
+    void range() {
+        assertEquals(14, calculator.range(3, 17, 15, 11, 9));
+    }
+
+    @Test
+    void mean() {
+        assertEquals(12.5, calculator.mean(13, 19, null, 14, 16, 5, 8), 0);
+    }
+
+    @Test
+    void median() {
+        assertEquals(6, calculator.median(7, 11, 6, 2, 5), 0);
+        assertEquals(13.5, calculator.median(13, 18, 14, 16, 5, 8), 0);
+    }
+
+    @Test
+    void mode() {
+        assertArrayEquals(new int[]{3}, calculator.mode(5, 2, 3, 6, 4, 1, 3));
+        assertArrayEquals(new int[]{3, 5}, calculator.mode(4, 5, 3, 1, 3, 2, 5, 6));
+        assertArrayEquals(new int[]{5}, calculator.mode(4, 5, 5, 3, 1, 3, 2, 5, 6));
+        assertArrayEquals(new int[]{1, 2, 3, 4, 5}, calculator.mode(1, 3, 2, 4, 5));
+    }
+
+    private class Calculator {
+
+        /**
+         * range: the difference between min and max values
+         */
+        int range(int... input) {
+
+            return 0;
+        }
+
+        /**
+         *  mean: the average of the numbers
+         */
+        double mean(Integer... input) {
+            Integer[] integers = input;
+            final Integer sum = Arrays.asList(integers).stream().reduce(0, (a, b) -> a + b);
+            final double average = sum / integers.length;
+            return average;
+        }
+
+        /**
+         * median: the middle number in a sorted list
+         * ...if there are two middle values, return the average of the two
+         */
+        double median(int... input) {
+return 0;
+        }
+
+
+        /**
+         *  mode: the most frequently occurring number
+         */
+        int[] mode(int... input) {
+            int[] numbers = input;
+//            List.of(numbers).stream().sorted().collect(Collectors.groupingBy(),Collectors.counting());
+            return null;
+        }
+    }
+
+    private final Calculator calculator = new Calculator();
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+package com.example.railroad;
+
+import java.util.HashSet;
+
+public class MissingPositiveFinder {
+    public static int findMissingPositive(int[] nums) {
+        HashSet<Integer> set = new HashSet<>();
+
+        // Add all positive numbers to the set
+        for (int num : nums) {
+            if (num > 0) {
+                set.add(num);
+            }
+        }
+
+        // Start checking from 1 upwards
+        int missing = 1;
+        while (set.contains(missing)) {
+            missing++;
+        }
+
+        return missing;
+    }
+
+    public static void main(String[] args) {
+        int[] nums = {3, 4, -1, 1};
+        int missing = findMissingPositive(nums);
+        System.out.println("The smallest missing positive integer is: " + missing);
+    }
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+package com.example.railroad;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class PrimeFactors {
+
+    public static List<Integer> findPrimeFactors(int number) {
+        List<Integer> primeFactors = new ArrayList<>();
+
+        // Check for divisibility by 2
+        while (number % 2 == 0) {
+            primeFactors.add(2);
+            number /= 2;
+        }
+
+        System.out.println("1. Number is now " + number);
+
+        // Check for divisibility by odd numbers starting from 3
+        for (int i = 3; i <= Math.sqrt(number); i += 2) {
+            System.out.println("i = " + i);
+            while (number % i == 0) {
+                primeFactors.add(i);
+                System.out.println("Added prime factor: " + i);
+                number /= i;
+            }
+        }
+
+        System.out.println("2. Number is now " + number);
+
+        // If number is prime, add it to the list
+        if (number > 2) {
+            primeFactors.add(number);
+        }
+
+        return primeFactors;
+    }
+
+    public static void main(String[] args) {
+        int number = 54;
+        System.out.println(Math.sqrt(number));
+        List<Integer> factors = findPrimeFactors(number);
+        System.out.println("Prime factors of " + number + ": " + factors);
+    }
+}
+
+
 
 
