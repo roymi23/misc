@@ -1,0 +1,212 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: sample-cloud-scheduler
+  labels:
+    app.kubernetes.io/version: '4.0.0'
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.22.0"
+    tekton.dev/platforms: "linux/amd64"
+    tekton.dev/categories: Build Tools, Cloud, Deployment
+    tekton.dev/tags: ecoboost, gcp, Deployment
+    tekton.dev/displayName: "EcoBoost Cloud Sechduler"
+spec:
+  description: This task deploy the cloud scheduler for cloud run jobs
+  params:
+    - default: 'false'
+      name: taskEnabled
+      type: string
+    - description: task image
+      name: taskImage
+      type: string
+    - description: CD Environment
+      name: cdEnvironment
+      type: string
+    - default: /tekton/home
+      description: Absolute path to the user's home directory.
+      name: userHome
+      type: string
+  steps:
+    - env:
+        - name: HOME
+          value: $(params.userHome)
+      image: $(params.taskImage)
+      name: deploy-cloudrun-jobs
+      resources:
+        limits:
+          cpu: '1'
+          memory: 2Gi
+        requests:
+          cpu: '1'
+          memory: 2Gi
+      script: >
+        #!/usr/bin/env bash
+        
+        echo "********************* Starting cloud scheduler *******************"
+        set -o errexit
+
+        set -o errtrace
+
+        set -o nounset
+
+        set -o pipefail
+
+        export GRADLE_USER_HOME=$(workspaces.output.path)/.gradle
+
+        export BOOST_PIPELINE_OFFERING_VERSION=4.0.0
+
+        echo "taskEnabled: $(params.taskEnabled)"
+
+        # if [[ "$(params.taskEnabled)" = "false" ]]; then #   exit 0 # fi
+
+        #Initialize Configuration for Cloud Scheduler
+
+        PIPELINE_CONFIG=pipeline/pipeline-configuration.json
+
+        specificEnvironment=`jq -j '.environment' $PIPELINE_CONFIG`
+
+        #Override with Environment Specific Pipeline Configuration, if any
+
+        if [[ "$(params.cdEnvironment)" ]] && [[ "$(params.cdEnvironment)" !=
+        "null" ]]; then
+          ENV_SPECIFIC_CONFIG=pipeline/pipeline-configuration-"$(params.cdEnvironment)".json
+
+          if [[ $(jq 'has("cloudRun")' $ENV_SPECIFIC_CONFIG) = "true" ]]; then
+              PIPELINE_CONFIG=$ENV_SPECIFIC_CONFIG
+          fi
+        fi
+
+        cd  $(workspaces.output.path)
+
+        source $(workspaces.output.path)/secret/google/cloudrun.sh 
+
+        source $(workspaces.output.path)/secret/google/cloudscheduler.sh
+
+        export CLOUD_RUN_REGION=$CLOUD_RUN_REGION
+
+        export CLOUD_RUN_PROJECT_ID=$CLOUD_RUN_PROJECT_ID
+
+        export CLOUD_RUN_JOB_NAME=$CLOUD_RUN_JOB_NAME
+
+        export BOOST_ENV_VARS_LIST=$ENV_VARS_LIST
+
+        export SCHEDULER_INTERVAL_LIST=$SCHEDULER_INTERVAL_LIST 
+
+        IFS=',' read -ra SCHEDULER_INTERVAL_LIST <<< "$SCHEDULER_INTERVAL_LIST" 
+
+        export CLOUD_SCHEDULER_LOCATION=$CLOUD_SCHEDULER_LOCATION
+
+        export CLOUD_SCHEDULER_CRON=$CLOUD_SCHEDULER_CRON
+
+        export gcpProjectId=$CLOUD_SCHEDULER_PROJECT_ID
+
+        export CLOUD_SCHEDULER_TIME_ZONE=$CLOUD_SCHEDULER_TIME_ZONE
+
+        export CLOUD_SCHEDULER_HTTP_METHOD=$CLOUD_SCHEDULER_HTTP_METHOD
+
+        export OAUTH_SERVICE_ACCOUNT_EMAIL=$OAUTH_SERVICE_ACCOUNT_EMAIL
+
+        export OAUTH_TOKEN_SCOPE=$OAUTH_TOKEN_SCOPE
+
+        export
+        GOOGLE_APPLICATION_CREDENTIALS=$(workspaces.output.path)/secret/google/credentials_config.json
+
+        export 
+        CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=${GOOGLE_APPLICATION_CREDENTIALS}
+
+        gcloud config set project  $gcpProjectId
+
+        export
+        CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=${GOOGLE_APPLICATION_CREDENTIALS}
+
+        echo "after gcloud activating service account" 
+
+        echo "***** gcloud login"
+
+        gcloud auth login --cred-file=${GOOGLE_APPLICATION_CREDENTIALS}
+
+        echo "***** all cloud schedulers in our project"
+
+        gcloud scheduler jobs list --location=$CLOUD_SCHEDULER_LOCATION
+        --project=$gcpProjectId
+
+        for interval in "${SCHEDULER_INTERVAL_LIST[@]}"; do
+            echo "*****> Scheduler interval- $interval"
+        done
+
+        count=0
+
+        for env_var in $BOOST_ENV_VARS_LIST;  do
+
+          value="${env_var#*=}"
+
+          export SCHEDULER_CLOUD_RUN_JOB_NAME="scheduler-$CLOUD_RUN_JOB_NAME-$value"
+
+          echo "**** SCHEDULER_CLOUD_RUN_JOB_NAME is - $SCHEDULER_CLOUD_RUN_JOB_NAME"
+        
+          FULL_CLOUD_RUN_JOB_NAME="$CLOUD_RUN_JOB_NAME-$value"
+
+          echo "---------> FULL_CLOUD_RUN_JOB_NAME is - $FULL_CLOUD_RUN_JOB_NAME"
+
+          export CLOUD_SCHEDULER_URI=https://$CLOUD_SCHEDULER_LOCATION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/$gcpProjectId/jobs/$FULL_CLOUD_RUN_JOB_NAME':run'
+
+          echo "**** CLOUD_SCHEDULER_URI is - $CLOUD_SCHEDULER_URI"
+        
+          echo "** checking for existing cloud run scheduler with the same name"
+
+          if gcloud scheduler jobs list --location=$CLOUD_SCHEDULER_LOCATION \
+            --project=$gcpProjectId \
+            --filter="NAME=projects/$gcpProjectId/locations/$CLOUD_SCHEDULER_LOCATION/jobs/$SCHEDULER_CLOUD_RUN_JOB_NAME" \
+            --format=json | grep "$SCHEDULER_CLOUD_RUN_JOB_NAME"; then 
+            echo "scheduler exists updating the current one......"
+            echo "****************************************************"
+            echo "#########--->SCHEDULER_INTERVAL_LIST index of $count is "${SCHEDULER_INTERVAL_LIST[$count]}""
+
+            gcloud scheduler jobs update http $SCHEDULER_CLOUD_RUN_JOB_NAME \
+                --location=$CLOUD_SCHEDULER_LOCATION \
+                --schedule="${SCHEDULER_INTERVAL_LIST[$count]}" \
+                --uri $CLOUD_SCHEDULER_URI \
+                --oauth-service-account-email=$OAUTH_SERVICE_ACCOUNT_EMAIL \
+                --oauth-token-scope=$OAUTH_TOKEN_SCOPE \
+                --project=$gcpProjectId
+
+          else
+              echo "No matching schedulers exists creating a new scheduler......"
+              echo "****************************************************"
+              echo "#########--->SCHEDULER_INTERVAL_LIST index of $count is ${SCHEDULER_INTERVAL_LIST[$count]}"
+              gcloud scheduler jobs create http $SCHEDULER_CLOUD_RUN_JOB_NAME \
+                --location=$CLOUD_SCHEDULER_LOCATION \
+                --schedule="${SCHEDULER_INTERVAL_LIST[$count]}" \
+                --project=$gcpProjectId \
+                --uri $CLOUD_SCHEDULER_URI \
+                --time-zone=$CLOUD_SCHEDULER_TIME_ZONE \
+                --http-method $CLOUD_SCHEDULER_HTTP_METHOD \
+                --oauth-service-account-email=$OAUTH_SERVICE_ACCOUNT_EMAIL \
+                --oauth-token-scope=$OAUTH_TOKEN_SCOPE
+        
+              echo "***************Pausing the newly created scheduler......"
+              gcloud scheduler jobs pause $SCHEDULER_CLOUD_RUN_JOB_NAME \
+                --location=$CLOUD_SCHEDULER_LOCATION \
+                --project=$gcpProjectId
+              echo "++++++++++Newly created schedulers are paused!!......"
+          fi
+        
+          count=$((count+1))
+        done
+      volumeMounts:
+        - mountPath: /var/run/secrets/openshift/serviceaccount
+          name: bound-sa-token
+          readOnly: true
+      workingDir: $(workspaces.output.path)
+  volumes:
+    - name: bound-sa-token
+      projected:
+        defaultMode: 420
+        sources:
+          - serviceAccountToken:
+              audience: openshift
+              expirationSeconds: 3600
+              path: token
+  workspaces:
+    - description: The source code to be updated
+      name: output
