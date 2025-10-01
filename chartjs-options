@@ -1,0 +1,75 @@
+public chart_Options: ChartOptions = {
+		plugins: {
+			legend: {
+				display: false
+			},
+			tooltip: {
+				enabled: true, // Enable or disable tooltips
+				position: 'nearest', // Position of the tooltip
+				displayColors: false,
+				callbacks: {
+					label(context) {
+						const i = context.dataIndex;
+						return [`${context.dataset.data[i]['y']}`]; // Customize the label format
+					},
+					title(tooltipItems) {
+						return `Time: ${tooltipItems[0].label} hrs - No. of Some Counts:  `; // Customize the title format
+					}
+				}
+			}
+		},
+		interaction: {
+			mode: 'index',
+			intersect: false
+		},
+		parsing: {
+			xAxisKey: 'x',
+			yAxisKey: 'y'
+		},
+		responsive: true,
+		scales: {
+			x: {
+				beginAtZero: true,
+				min: Math.min(...this.chart_Labels), // Dynamically set min
+				ticks: {
+					display: false
+				},
+				title: {
+					color: 'rgb(16, 43, 78)',
+					font: {
+						family: 'Arial',
+						size: 16,
+						weight: 'bold'
+					},
+					display: true,
+					text: 'HOUR OF SOME'
+				},
+				grid: {
+					display: false
+				}
+			},
+			y: {
+				beginAtZero: true,
+				min: 0,
+				max: 50,
+				ticks: {
+					display: true,
+					stepSize: 5 // Set increments of 5
+				},
+				title: {
+					color: 'rgb(16, 43, 78)',
+					font: {
+						family: 'Arial',
+						size: 16,
+						weight: 'bold'
+					},
+					display: true,
+					text: 'some text'
+				},
+				grid: {
+					display: false
+				}
+			}
+		},
+
+	};
