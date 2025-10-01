@@ -1,0 +1,455 @@
+// 1. Define the typealias for Id
+typealias Id = Int
+
+// 2. Updated Course data class (as per your last request)
+data class Course(
+    val Id: Id, // Using the typealias 'Id' (which is an Int) and attribute name 'Id'
+    val name: String,
+    val isPaid: Boolean // New attribute, replacing 'credits'
+)
+
+// 3. Updated Student data class (with subscribedCourses)
+data class Student(
+    val id: String,
+    val name: String,
+    val age: Int,
+    val subscribedCourses: List<Course> = emptyList()
+)
+
+// 4. Repository Interface (assuming it handles Student objects)
+interface Repository<T> {
+    fun get(id: String): T?
+    fun getAll(): List<T>
+    fun add(item: T)
+    fun update(item: T) // Needed for potential future updates like enrolling a student in a course
+}
+
+// 5. Simple In-Memory Implementation of Student Repository for demonstration
+class InMemoryStudentRepository : Repository<Student> {
+    private val students = mutableListOf<Student>() // This list needs to be mutable
+
+    override fun get(id: String): Student? {
+        return students.find { it.id == id }
+    }
+
+    override fun getAll(): List<Student> {
+        return students.toList() // Return a copy to prevent external modification
+    }
+
+    override fun add(item: Student) {
+        if (students.none { it.id == item.id }) {
+            students.add(item)
+        } else {
+            println("Student with ID ${item.id} already exists (add attempt).")
+        }
+    }
+
+    override fun update(item: Student) {
+        val index = students.indexOfFirst { it.id == item.id }
+        if (index != -1) {
+            students[index] = item // Replace the old student object with the updated one
+            println("Student ${item.name} (ID: ${item.id}) updated.")
+        } else {
+            println("Student with ID ${item.id} not found for update.")
+        }
+    }
+}
+
+
+
+======================================================================================================================================
+
+class College(private val repository : Repository<Student>) {
+
+    // Existing method to enroll a student (simplified for this example)
+    fun enrollStudent(student: Student) {
+        repository.add(student)
+        println("Enrolled student: ${student.name}")
+    }
+
+    // Existing method to find a student
+    fun findStudentById(studentId: String): Student? {
+        return repository.get(studentId)
+    }
+
+    /**
+     * Returns a map of the most popular paid courses and the number of students subscribed to each.
+     *
+     * @param coursesCount The maximum number of courses to return.
+     * @return A Map where the key is a Course and the value is the count of subscribed students.
+     *         The map contains only paid courses, sorted descending by student count,
+     *         and will contain up to `coursesCount` entries.
+     */
+    fun getMostPopularPaidCourses(coursesCount: Int): Map<Course, Int> {
+        // 1. Get all students from the repository
+        val allStudents = repository.getAll()
+
+        // 2. Flatten all subscribed courses from all students into a single list
+        val allSubscribedCourses = allStudents.flatMap { it.subscribedCourses }
+
+        // 3. Filter for paid courses and then group by course to count occurrences
+        val courseCounts: Map<Course, Int> = allSubscribedCourses
+            .filter { it.isPaid } // Keep only courses where isPaid is true
+            .groupingBy { it }    // Group by the Course object itself
+            .eachCount()          // Count how many times each unique Course appears
+
+        // 4. Sort the courses by their student count in descending order,
+        //    take the top 'coursesCount' entries, and convert back to a Map
+        val sortedAndLimitedCourses = courseCounts.entries
+            .sortedByDescending { it.value } // Sort entries by their value (student count) descending
+            .take(coursesCount)              // Take only the first 'coursesCount' entries
+            .associate { it.key to it.value } // Convert the list of entries back into a Map
+
+        return sortedAndLimitedCourses
+    }
+}
+
+============================================================================================================================
+
+fun main() {
+    val studentRepository = InMemoryStudentRepository()
+    val myCollege = College(studentRepository)
+
+    // Define some courses
+    val mathCourse = Course(Id = 101, name = "Introduction to Mathematics", isPaid = true)
+    val freeCompSciCourse = Course(Id = 201, name = "Introduction to Programming", isPaid = false)
+    val advancedCompSciCourse = Course(Id = 202, name = "Data Structures & Algorithms", isPaid = true)
+    val historyCourse = Course(Id = 100, name = "World History I", isPaid = true)
+    val artHistoryCourse = Course(Id = 301, name = "Art History", isPaid = true)
+    val freeArtCourse = Course(Id = 302, name = "Intro to Drawing", isPaid = false)
+
+    // Enroll some students with various course subscriptions
+    myCollege.enrollStudent(Student("S001", "Alice", 20, listOf(mathCourse, advancedCompSciCourse, historyCourse)))
+    myCollege.enrollStudent(Student("S002", "Bob", 22, listOf(mathCourse, freeCompSciCourse, artHistoryCourse)))
+    myCollege.enrollStudent(Student("S003", "Charlie", 21, listOf(advancedCompSciCourse, historyCourse, artHistoryCourse, freeArtCourse)))
+    myCollege.enrollStudent(Student("S004", "David", 23, listOf(mathCourse, advancedCompSciCourse)))
+    myCollege.enrollStudent(Student("S005", "Eve", 19, listOf(historyCourse, artHistoryCourse)))
+
+    println("\n--- Most Popular Paid Courses (Top 2) ---")
+    val top2PaidCourses = myCollege.getMostPopularPaidCourses(2)
+    top2PaidCourses.forEach { (course, count) ->
+        println("${course.name} (ID: ${course.Id}, Paid: ${course.isPaid}): $count students")
+    }
+    /* Expected Output (order might vary for ties in count, but top 2 will be correct):
+       Data Structures & Algorithms (ID: 202, Paid: true): 3 students
+       Introduction to Mathematics (ID: 101, Paid: true): 3 students
+    */
+
+
+    println("\n--- Most Popular Paid Courses (Top 3) ---")
+    val top3PaidCourses = myCollege.getMostPopularPaidCourses(3)
+    top3PaidCourses.forEach { (course, count) ->
+        println("${course.name} (ID: ${course.Id}, Paid: ${course.isPaid}): $count students")
+    }
+    /* Expected Output:
+       Data Structures & Algorithms (ID: 202, Paid: true): 3 students
+       Introduction to Mathematics (ID: 101, Paid: true): 3 students
+       World History I (ID: 100, Paid: true): 3 students
+    */
+
+    println("\n--- Most Popular Paid Courses (Top 5 - more than available) ---")
+    val top5PaidCourses = myCollege.getMostPopularPaidCourses(5)
+    top5PaidCourses.forEach { (course, count) ->
+        println("${course.name} (ID: ${course.Id}, Paid: ${course.isPaid}): $count students")
+    }
+    /* Expected Output:
+       Data Structures & Algorithms (ID: 202, Paid: true): 3 students
+       Introduction to Mathematics (ID: 101, Paid: true): 3 students
+       World History I (ID: 100, Paid: true): 3 students
+       Art History (ID: 301, Paid: true): 3 students
+    */
+    // Note: Since there are only 4 unique paid courses with subscriptions, the map size will be 4,
+    // even though coursesCount was 5. The function returns *up to* coursesCount.
+}
+
+
+=======================================================================================================================================
+
+
+import java.util.Objects; // For Objects.equals and Objects.hash
+
+public class Course {
+    private final int id; // Corresponds to Kotlin's 'Id' typealias
+    private final String name;
+    private final boolean isPaid;
+
+    public Course(int id, String name, boolean isPaid) {
+        this.id = id;
+        this.name = name;
+        this.isPaid = isPaid;
+    }
+
+    // Getters
+    public int getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public boolean isPaid() {
+        return isPaid;
+    }
+
+    // equals() and hashCode() are crucial for Course objects to work correctly as Map keys
+    // and in collections like List.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Course course = (Course) o;
+        return id == course.id &&
+               isPaid == course.isPaid &&
+               Objects.equals(name, course.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, isPaid);
+    }
+
+    @Override
+    public String toString() {
+        return "Course{" +
+               "id=" + id +
+               ", name='" + name + '\'' +
+               ", isPaid=" + isPaid +
+               '}';
+    }
+}
+
+===========================================================================================================================================
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
+public class Student {
+    private final String id;
+    private final String name;
+    private final int age;
+    private final List<Course> subscribedCourses; // Immutable list
+
+    // Constructor
+    public Student(String id, String name, int age, List<Course> subscribedCourses) {
+        this.id = id;
+        this.name = name;
+        this.age = age;
+        // Defensive copy to ensure immutability of the internal list
+        this.subscribedCourses = Collections.unmodifiableList(subscribedCourses);
+    }
+
+    // Getters
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public int getAge() {
+        return age;
+    }
+
+    public List<Course> getSubscribedCourses() {
+        return subscribedCourses; // Returns the unmodifiable list
+    }
+
+    // equals() and hashCode() for proper collection behavior
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Student student = (Student) o;
+        return age == student.age &&
+               Objects.equals(id, student.id) &&
+               Objects.equals(name, student.name) &&
+               Objects.equals(subscribedCourses, student.subscribedCourses);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, age, subscribedCourses);
+    }
+
+    @Override
+    public String toString() {
+        return "Student{" +
+               "id='" + id + '\'' +
+               ", name='" + name + '\'' +
+               ", age=" + age +
+               ", subscribedCourses=" + subscribedCourses +
+               '}';
+    }
+}
+
+========================================================================================================================================
+
+import java.util.List;
+
+public interface Repository<T> {
+    T get(String id); // Assumes String ID for generic T
+    List<T> getAll();
+    void add(T item);
+    void update(T item);
+}
+
+=========================================================================================================================================
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+public class InMemoryStudentRepository implements Repository<Student> {
+    private final List<Student> students = new ArrayList<>();
+
+    @Override
+    public Student get(String id) {
+        return students.stream()
+                       .filter(s -> s.getId().equals(id))
+                       .findFirst()
+                       .orElse(null);
+    }
+
+    @Override
+    public List<Student> getAll() {
+        return new ArrayList<>(students); // Return a copy to prevent external modification
+    }
+
+    @Override
+    public void add(Student item) {
+        // Check for existing ID before adding
+        if (students.stream().noneMatch(s -> s.getId().equals(item.getId()))) {
+            students.add(item);
+            System.out.println("Student " + item.getName() + " added.");
+        } else {
+            System.out.println("Student with ID " + item.getId() + " already exists (add attempt).");
+        }
+    }
+
+    @Override
+    public void update(Student item) {
+        Optional<Student> existingStudent = students.stream()
+                                                    .filter(s -> s.getId().equals(item.getId()))
+                                                    .findFirst();
+        if (existingStudent.isPresent()) {
+            int index = students.indexOf(existingStudent.get());
+            students.set(index, item); // Replace the old object with the updated one
+            System.out.println("Student " + item.getName() + " (ID: " + item.getId() + ") updated.");
+        } else {
+            System.out.println("Student with ID " + item.getId() + " not found for update.");
+        }
+    }
+}
+
+================================================================================================================================================
+
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+public class College {
+    private final Repository<Student> repository;
+
+    public College(Repository<Student> repository) {
+        this.repository = repository;
+    }
+
+    public void enrollStudent(Student student) {
+        repository.add(student);
+        System.out.println("Enrolled student: " + student.getName());
+    }
+
+    public Student findStudentById(String studentId) {
+        return repository.get(studentId);
+    }
+
+    /**
+     * Returns a map of the most popular paid courses and the number of students subscribed to each.
+     *
+     * @param coursesCount The maximum number of courses to return.
+     * @return A Map where the key is a Course and the value is the count of subscribed students.
+     *         The map contains only paid courses, sorted descending by student count,
+     *         and will contain up to `coursesCount` entries.
+     */
+    public Map<Course, Integer> getMostPopularPaidCourses(int coursesCount) {
+        // 1. Get all students from the repository
+        List<Student> allStudents = repository.getAll();
+
+        // 2. Flatten all subscribed courses from all students into a single stream
+        // 3. Filter for paid courses
+        Map<Course, Long> courseCounts = allStudents.stream()
+                .flatMap(student -> student.getSubscribedCourses().stream()) // Flatten lists of courses
+                .filter(Course::isPaid) // Keep only courses where isPaid is true
+                // Group by Course object and count occurrences
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+
+        // 4. Sort the courses by their student count in descending order,
+        //    take the top 'coursesCount' entries, and collect into a LinkedHashMap
+        //    to maintain insertion order (which is the sorted order).
+        return courseCounts.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder())) // Sort entries by value descending
+                .limit(coursesCount) // Take the top 'coursesCount' entries
+                // Collect into a LinkedHashMap to preserve order, converting Long count to Integer
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().intValue(),
+                        (oldValue, newValue) -> oldValue, // Merge function for duplicate keys (shouldn't happen here)
+                        LinkedHashMap::new // Ensure order is preserved
+                ));
+    }
+}
+
+
+=============================================================================================================================================
+
+import java.util.Arrays;
+import java.util.List;
+
+public class Main { // Or whatever you name your main class
+    public static void main(String[] args) {
+        InMemoryStudentRepository studentRepository = new InMemoryStudentRepository();
+        College myCollege = new College(studentRepository);
+
+        // Define some courses
+        Course mathCourse = new Course(101, "Introduction to Mathematics", true);
+        Course freeCompSciCourse = new Course(201, "Introduction to Programming", false);
+        Course advancedCompSciCourse = new Course(202, "Data Structures & Algorithms", true);
+        Course historyCourse = new Course(100, "World History I", true);
+        Course artHistoryCourse = new Course(301, "Art History", true);
+        Course freeArtCourse = new Course(302, "Intro to Drawing", false);
+
+        // Enroll some students with various course subscriptions
+        myCollege.enrollStudent(new Student("S001", "Alice", 20, Arrays.asList(mathCourse, advancedCompSciCourse, historyCourse)));
+        myCollege.enrollStudent(new Student("S002", "Bob", 22, Arrays.asList(mathCourse, freeCompSciCourse, artHistoryCourse)));
+        myCollege.enrollStudent(new Student("S003", "Charlie", 21, Arrays.asList(advancedCompSciCourse, historyCourse, artHistoryCourse, freeArtCourse)));
+        myCollege.enrollStudent(new Student("S004", "David", 23, Arrays.asList(mathCourse, advancedCompSciCourse)));
+        myCollege.enrollStudent(new Student("S005", "Eve", 19, Arrays.asList(historyCourse, artHistoryCourse)));
+
+        System.out.println("\n--- Most Popular Paid Courses (Top 2) ---");
+        Map<Course, Integer> top2PaidCourses = myCollege.getMostPopularPaidCourses(2);
+        top2PaidCourses.forEach((course, count) ->
+            System.out.println(course.getName() + " (ID: " + course.getId() + ", Paid: " + course.isPaid() + "): " + count + " students")
+        );
+
+        System.out.println("\n--- Most Popular Paid Courses (Top 3) ---");
+        Map<Course, Integer> top3PaidCourses = myCollege.getMostPopularPaidCourses(3);
+        top3PaidCourses.forEach((course, count) ->
+            System.out.println(course.getName() + " (ID: " + course.getId() + ", Paid: " + course.isPaid() + "): " + count + " students")
+        );
+
+        System.out.println("\n--- Most Popular Paid Courses (Top 5 - more than available) ---");
+        Map<Course, Integer> top5PaidCourses = myCollege.getMostPopularPaidCourses(5);
+        top5PaidCourses.forEach((course, count) ->
+            System.out.println(course.getName() + " (ID: " + course.getId() + ", Paid: " + course.isPaid() + "): " + count + " students")
+        );
+    }
+}
+
+
+=====================================================================================================================================================
