@@ -1,0 +1,51 @@
+    private String buildSampleCountQuery(SampleParam param) {
+        StringBuilder queryBuilder = new StringBuilder();
+        String groupByClause = null;
+        String allHoursSQL = """
+                WITH CurrentHour AS (
+                    SELECT
+                        EXTRACT(HOUR FROM CURRENT_TIMESTAMP() AT TIME ZONE 'America/New_York') AS current_hour
+                ),
+                AllHours AS (
+                    SELECT
+                        MOD(ch.current_hour - offset + 24, 24) AS raw_hour,
+                        offset,
+                        FORMAT_TIMESTAMP('%I %p', TIMESTAMP('2000-01-01 00:00:00') + INTERVAL offset HOUR) AS hour_of_day
+                    FROM
+                        UNNEST(GENERATE_ARRAY(0, 23)) AS offset,
+                        CurrentHour AS ch
+                ),
+                """;
+        String hourlyCountsSQL = """
+                HourlyCounts AS (
+                            SELECT
+                                EXTRACT(HOUR FROM sample_timestamp) AS raw_hour,
+                                COUNT(*) AS Count
+                            FROM {dataset}.sample
+                            where DATE(sample_timestamp) > DATE_SUB(CURRENT_DATETIME('America/New_York'), INTERVAL 24 HOUR)
+                            and e_id = @eid
+                            and st IN UNNEST(@st) %s                                                   
+                """;
+        String orderByClause = """
+                )
+                                SELECT
+                                    FORMAT_TIMESTAMP('%H', TIMESTAMP('2000-01-01 00:00:00') + INTERVAL ah.raw_hour HOUR) AS hour_of_day,
+                                    COALESCE(hc.Count, 0) AS Count
+                                FROM
+                                    AllHours AS ah
+                                LEFT JOIN
+                                    HourlyCounts AS hc
+                                ON
+                                    ah.offset = hc.raw_hour
+                                ORDER BY
+                                    ah.offset desc                                
+                """;
+        groupByClause = " GROUP BY raw_hour";
+        if (getSomething().equals(SOMETHING1)) {
+            hourlyCountsSQL = String.format(hourlyCountsSQL, "");
+        } else if (param.getSomething().equals(SOMETHING2)) {
+            hourlyCountsSQL = String.format(hourlyCountsSQL, "and td = @td");
+        }
+        queryBuilder.append(allHoursSQL).append(hourlyCountsSQL).append(groupByClause).append(orderByClause);
+        return queryBuilder.toString();
+    }
