@@ -1,0 +1,111 @@
+plugins {
+	id 'java'
+	id 'maven-publish'
+	id 'org.springframework.boot' version '3.1.3'
+	id 'gradle-boost' version '5.0.1'
+	id 'org.sonarqube' version '4.0.0.2929'
+	id 'jacoco'
+	id 'com.google.cloud.tools.jib' version '3.3.2'
+}
+
+jib {
+	from {
+		image = 'registry.example.com/misc/jre17:latest'
+		auth {
+			username = 'user'
+			password = 'password'
+		}
+	}
+	to {
+		image = 'docker image path'
+	}
+	container {
+		jvmFlags = ['-Dspring.profiles.active=dev']
+	}
+}
+
+group = ''
+version = 
+println "Build Version = ${version ?: '[none]'}"
+
+sourceCompatibility = JavaVersion.VERSION_17
+targetCompatibility = JavaVersion.VERSION_17
+
+dependencies {
+	// Bill Of Materials Imports
+	bomImport platform('org.springframework.cloud:spring-cloud-dependencies:2022.0.4')
+	bomImport platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
+	bomImport platform('com.google.cloud:spring-cloud-gcp-dependencies:4.7.2')
+
+	//Core libraries
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap'
+	implementation ''
+
+	//Distributed Tracing
+	implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+	implementation 'com.google.cloud:spring-cloud-gcp-starter-trace'
+
+	//spring doc
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0'
+
+	//security
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation ''
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+	// GCS
+	implementation 'com.google.cloud:google-cloud-storage'
+
+	// DROOLS
+	implementation group: 'org.drools', name: 'drools-core', version: '9.44.0.Final'
+	implementation group: 'org.drools', name: 'drools-compiler', version: '9.44.0.Final'
+	implementation group: 'org.drools', name: 'drools-decisiontables', version: '9.44.0.Final'
+	implementation group: 'org.drools', name: 'drools-mvel', version: '9.44.0.Final'
+
+	//DB
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.postgresql:postgresql'
+	implementation 'com.google.cloud.sql:postgres-socket-factory:1.7.0'
+
+	//secrets manager
+	implementation 'com.google.cloud:spring-cloud-gcp-starter-secretmanager:3.4.0'
+
+	//SRE Metrics
+
+
+	//other
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	implementation 'org.modelmapper:modelmapper:3.1.1'
+
+	///BEGIN - CVE Patches - overriding transitive dependencies to address CVE's
+
+	implementation ('org.yaml:snakeyaml') {
+		version {
+			strictly "1.33"
+		}
+		because "patch CVE-2022-25857 brought in by SnakeYAML."
+	}
+
+	///END - CVE Patches
+
+	///BEGIN - Temporary Workarounds
+
+	///END - Temporary Workarounds
+
+	/*********** TEST libs ***********/
+	testImplementation 'com.cloudnative:spring-base-test:5.0.0'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+tasks.withType(Test) {
+	useJUnitPlatform()
+}
