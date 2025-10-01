@@ -1,0 +1,51 @@
+  <div style="margin-top:50px; width: 100%;">
+    <!-- Progress Spinner Loader -->
+    <div class="spinner" *ngIf="isSpinnerActivated">
+      <p-progressSpinner [style]="{width: '50px', height: '50px'}" animationDuration="5s"></p-progressSpinner>
+    </div>
+
+    <p-carousel [value]="popUpInspections" (onPage)="setPage($event)">
+
+      <ng-template pTemplate="header">
+        <div class="cs-detail-popup-grid">
+          <div class="carousel-pic">
+            <span class="carousel-pic carousel-header">Header1</span>
+          </div>
+          <div class="carousel-chart">
+            <span class="carousel-chart carousel-header">Header2</span>
+          </div>
+          <div class="carousel-history">
+            <span class="carousel-history carousel-header">Header3</span>
+          </div>
+        </div>
+      </ng-template>
+
+      <ng-template let-item pTemplate="item" let-i="index">
+
+        <div class="sample-grid">
+          <div class="sample-pic">
+            <span *ngIf="!item.latestSample">Nothing available</span>
+            <img *ngIf="item.latestSample" src="{{item.latestSample}}" style="height:300px;width:300px;"
+              alt="alt" />
+            <div class="carousel-caption" *ngIf="item.latestSample">
+              <span class="decorate-anchor-text" style="font-size: 14px; color: black;">
+                {{item.name}}</span>
+              <span class="decorate-anchor-text" style="font-size: 14px; color: black;">
+                - captured at {{item.latestSampleTimeStamp | date:'short'}}
+              </span>
+            </div>
+          </div>
+          <div class="carousel-chart">
+            <canvas id="Chart{{ i }}" baseChart [datasets]="chartDataSet" [labels]="chart_Labels"
+              [options]="chart_Options" [plugins]="chart_Plugins" [legend]="chart_Legend" type="line">
+            </canvas>
+          </div>
+          <div class="carousel-history">
+            <span class="decorate-anchor-text" style="font-size: 14px; color: black;">
+              <a (click)="closeNavigate(item.name)" routerLink="/sample-page">SomeHeader</a>
+            </span>
+          </div>
+        </div>
+      </ng-template>
+    </p-carousel>
+  </div>
