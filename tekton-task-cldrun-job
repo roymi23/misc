@@ -1,0 +1,225 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: sample-cloudrun-job
+  labels:
+    app.kubernetes.io/version: '4.0.0'
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.22.0"
+    tekton.dev/platforms: "linux/amd64"
+    tekton.dev/categories: Build Tools, Cloud, Deployment
+    tekton.dev/tags: sample, gcp, Deployment
+    tekton.dev/displayName: "Sample Cloud Run Job Deploy"
+spec:
+  description: >-
+    This task deploys a sample cloudrun job.
+  params:
+    - default: 'true'
+      name: taskEnabled
+      type: string
+    - description: task image
+      name: taskImage
+      type: string
+    - description: CD Environment
+      name: cdEnvironment
+      type: string
+    - default: /tekton/home
+      description: Absolute path to the user's home directory.
+      name: userHome
+      type: string
+  steps:
+    - env:
+        - name: HOME
+          value: $(params.userHome)
+      image: $(params.taskImage)
+      name: cloud-run-job-deploy
+      resources:
+        limits:
+          cpu: '1'
+          memory: 2Gi
+        requests:
+          cpu: '1'
+          memory: 2Gi
+      script: >
+        #!/usr/bin/env bash
+        
+        echo "**************************** Starting cloud run job deployment.************************************"
+        set -o errexit
+
+        set -o errtrace
+
+        set -o nounset
+
+        set -o pipefail
+
+        export GRADLE_USER_HOME=$(workspaces.output.path)/.gradle
+
+        export BOOST_PIPELINE_OFFERING_VERSION=4.0.0
+
+        echo "taskEnabled: $(params.taskEnabled)"
+
+        if [[ "$(params.taskEnabled)" = "false" ]]; then
+          exit 0
+        fi
+
+        #Initialize Configuration for Cloud Run Jobs
+
+        PIPELINE_CONFIG=pipeline/pipeline-configuration.json
+
+        specificEnvironment=`jq -j '.environment' $PIPELINE_CONFIG`
+
+        #Override with Environment Specific Pipeline Configuration, if any
+
+        if [[ "$(params.cdEnvironment)" ]] && [[ "$(params.cdEnvironment)" !=
+        "null" ]]; then
+          ENV_SPECIFIC_CONFIG=pipeline/pipeline-configuration-"$(params.cdEnvironment)".json
+
+          if [[ $(jq 'has("cloudRun")' $ENV_SPECIFIC_CONFIG) = "true" ]]; then
+              PIPELINE_CONFIG=$ENV_SPECIFIC_CONFIG
+          fi
+        fi
+
+        cd  $(workspaces.output.path)
+
+        source $(workspaces.output.path)/secret/google/cloudrun.sh
+
+        containerImage=$CLOUD_RUN_IMAGE_LOCATION/$CLOUD_RUN_SERVICE_NAME
+
+        gcpProjectId=$CLOUD_RUN_PROJECT_ID
+
+        export BOOST_CLOUD_RUN_JOB_REGION=$CLOUD_RUN_REGION
+
+        export CLOUD_RUN_REGION=$CLOUD_RUN_REGION
+
+        export BOOST_CLOUD_RUN_ALLOW_UNAUTHENTICATED=$CLOUD_RUN_ALLOW_UNAUTHENTICATED
+
+        export BOOST_CLOUD_RUN_VPC_CONNECTOR=$CLOUD_RUN_VPC_CONNECTOR
+
+        export BOOST_CLOUD_RUN_VPC_EGRESS=$CLOUD_RUN_VPC_EGRESS
+
+        export BOOST_CLOUD_RUN_JOB_NAME=$CLOUD_RUN_JOB_NAME
+
+        export BOOST_CLOUD_RUN_IMAGE="$containerImage:$CLOUD_RUN_IMAGE_TAG"
+
+        export BOOST_CLOUD_RUN_SA=$CLOUD_RUN_SERVICE_ACCOUNT
+
+        export BOOST_CLOUD_RUN_ENV_VARS=$CLOUD_RUN_ENV_VARS
+
+        export BOOST_ENV_VARS_LIST=$ENV_VARS_LIST
+        
+        echo "**************************** BOOST_ENV_VARS_LIST done...************************************"
+        
+        IFS=' ' read -ra env_vars <<< "$BOOST_ENV_VARS_LIST"
+        
+        export BOOST_TASK_TIMEOUT_LIST=$TASK_TIMEOUT_LIST
+        
+        IFS=' ' read -ra timeout_list <<< "$BOOST_TASK_TIMEOUT_LIST"
+
+        export BOOST_CLOUD_RUN_ADDITIONAL_FLAGS=$CLOUD_RUN_ADDITIONAL_FLAGS
+
+        export
+        GOOGLE_APPLICATION_CREDENTIALS=$(workspaces.output.path)/secret/google/credentials_config.json
+
+        export 
+        CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=${GOOGLE_APPLICATION_CREDENTIALS}
+
+        export BOOST_IAM_POLICY_BINDING_PRINCIPALS=$CLOUD_RUN_DEPLOY_SA
+
+        export CLOUD_RUN_PARALLELISM=$CLOUD_RUN_PARALLELISM
+
+        export CLOUD_RUN_TASKS=$CLOUD_RUN_TASKS
+
+        if [[ "$CLOUD_RUN_ALLOW_UNAUTHENTICATED" != "true" ]]; then
+          export BOOST_GCP_AUTH_ENABLED=true
+          export ACCEPTANCE_DEFAULT_GCP_AUTH_TOKEN=$CLOUD_RUN_DEPLOY_SA_IDENTITY_TOKEN
+        fi  
+
+        gcloud config set project $gcpProjectId
+
+        gcloud config set run/region $BOOST_CLOUD_RUN_JOB_REGION
+
+        #Cloud Run Job Deployment:  
+
+        echo " after gcloud activating serviceaccount" 
+
+        echo "***** gcloud login"
+
+        gcloud auth login --cred-file=${GOOGLE_APPLICATION_CREDENTIALS}
+
+        echo "***** all cloud run jobs in our project"
+
+        gcloud run jobs list --project=$gcpProjectId
+
+        echo "**** cloudRunJobName - $CLOUD_RUN_JOB_NAME"
+
+        echo "** checking for existing cloud run service with the same name **"
+
+        customSA=$CLOUD_RUN_SERVICE_ACCOUNT
+
+        echo "-----> BOOST_ENV_VARS_LIST is - $BOOST_ENV_VARS_LIST"
+
+        for index in "${!env_vars[@]}";  do
+        
+          echo "+++ index is $index"
+        
+          echo "\\\\ env_vars[$index] is ${env_vars[$index]}"
+        
+          env_var=${env_vars[$index]}
+        
+          timeout=${timeout_list[$index]}
+        
+          echo "-->env_var is $env_var"
+        
+          value="${env_var#*=}"
+        
+          echo "==> value is $value"
+
+          batchJobName=$env_var
+        
+          envList="${batchJobName},${BOOST_CLOUD_RUN_ENV_VARS}"
+        
+          echo "++++----> envList is $envList"
+        
+          FULL_CLOUD_RUN_JOB_NAME="$CLOUD_RUN_JOB_NAME-$value"
+          echo "----> Current ENV kv pair is $batchJobName, FULL_CLOUD_RUN_JOB_NAME is $FULL_CLOUD_RUN_JOB_NAME"
+
+          if gcloud run jobs list --filter=$FULL_CLOUD_RUN_JOB_NAME | grep -q "$FULL_CLOUD_RUN_JOB_NAME"; then
+
+            echo "A job with that name already exists,  updating the current job"
+
+            echo "***** Existing Cloud run job  - $FULL_CLOUD_RUN_JOB_NAME "
+        
+            gcloud run jobs update $FULL_CLOUD_RUN_JOB_NAME --image=$BOOST_CLOUD_RUN_IMAGE --service-account=$customSA --region=$BOOST_CLOUD_RUN_JOB_REGION --set-env-vars=$envList --task-timeout=$timeout
+
+            echo "===== Updated Cloud run job  --> gcloud run jobs update $FULL_CLOUD_RUN_JOB_NAME --image=$BOOST_CLOUD_RUN_IMAGE --service-account=$customSA --region=$BOOST_CLOUD_RUN_JOB_REGION --set-env-vars=$envList --task-timeout=$timeout "
+          else
+            echo "Creating a new job"
+
+            gcloud run jobs deploy $FULL_CLOUD_RUN_JOB_NAME --image=$BOOST_CLOUD_RUN_IMAGE \
+            --service-account=$customSA  --region=$BOOST_CLOUD_RUN_JOB_REGION \
+            --set-env-vars=$envList \
+            --task-timeout=$timeout \
+            --vpc-egress=$BOOST_CLOUD_RUN_VPC_EGRESS --vpc-connector=$BOOST_CLOUD_RUN_VPC_CONNECTOR \
+            --parallelism=$CLOUD_RUN_PARALLELISM --tasks=$CLOUD_RUN_TASKS $BOOST_CLOUD_RUN_ADDITIONAL_FLAGS      
+        
+            echo "===== Created Cloud run job  --> gcloud run jobs deploy $FULL_CLOUD_RUN_JOB_NAME --image=$BOOST_CLOUD_RUN_IMAGE --service-account=$customSA  --region=$BOOST_CLOUD_RUN_JOB_REGION --set-env-vars=$envList --task-timeout=$timeout --vpc-egress=$BOOST_CLOUD_RUN_VPC_EGRESS --vpc-connector=$BOOST_CLOUD_RUN_VPC_CONNECTOR --parallelism=$CLOUD_RUN_PARALLELISM --tasks=$CLOUD_RUN_TASKS $BOOST_CLOUD_RUN_ADDITIONAL_FLAGS"
+          fi
+
+        done
+      volumeMounts:
+        - mountPath: /var/run/secrets/openshift/serviceaccount
+          name: bound-sa-token
+          readOnly: true
+      workingDir: $(workspaces.output.path)
+  volumes:
+    - name: bound-sa-token
+      projected:
+        defaultMode: 420
+        sources:
+          - serviceAccountToken:
+              audience: openshift
+              expirationSeconds: 3600
+              path: token
+  workspaces:
+    - description: The source code to be updated
+      name: output
