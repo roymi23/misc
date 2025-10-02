@@ -1,0 +1,653 @@
+.camera-status-section {
+  width: 95%;
+  margin: 1em auto;
+  box-sizing: border-box;
+  border: 1px solid #979797;
+  background-color: #FFFFFF;
+  color: #00095b;
+  padding: 1em 1em 1em 1em;
+}
+
+.message-div {
+  width: 95%;
+  margin: 1em auto;
+  box-sizing: border-box;
+  border: 1px solid #979797;
+  background-color: #FFFFFF;
+  color: #00095b;
+  padding: 1em 2em 2em 2em;
+}
+
+.custom-tr-body {
+  border: none !important;
+  width: 14%;
+  text-align: left;
+  margin-left: 0 !important;
+}
+
+.error-text {
+  font-weight: 700;
+  color: #FF5252;
+}
+
+.spinner {
+  margin-top: auto;
+  margin-bottom: auto;
+  text-align: center;
+}
+
+/* Place component-specific SCSS in this file. It will apply only to this component's HTML */
+
+.menu-grid {
+
+  background-color: #fff;
+}
+
+.col-1.grid-col {
+  width: 13.00%;
+  padding-left: 2em;
+}
+
+.col-9.grid-col {
+  width: 10.00%;
+  padding-left: 2em;
+}
+
+.p-button {
+  height: 35px;
+}
+
+.dropdowns.p-dropdown.p-component.p-dropdown-open {
+  font-family: "Arial !important", sans-serif;
+}
+
+p-dropdown::ng-deep .p-dropdown {
+  width: 100%;
+}
+
+
+select,
+input,
+button {
+  height: 30px;
+  margin-top: 2px;
+  border: 1px solid #d3d3d3;
+  border-radius: 0.3em;
+}
+
+button.primary {
+  background-color: green;
+  color: #fff;
+}
+
+button.default {
+  border: 1px solid rgb(19, 27, 70);
+  color: rgb(19, 27, 70);
+  background-color: snow;
+}
+
+a,
+a:active {
+  color: #2861A4;
+}
+
+
+
+.maivs-dropdown-list {
+  background: #fff;
+  border: 1px solid #6e6e6e;
+  transition: background-color .2s, color .2s, border-color .2s, box-shadow .2s;
+  border-radius: 3px;
+  width: 100%;
+  height: 37px;
+  font-family: Trebuchet MS, Arial, Helvetica, sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.circle-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 100px;
+  /* Increased gap between circles */
+  justify-content: center;
+  /* Center horizontally */
+  align-items: center;
+  /* Center vertically */
+  height: 8%;
+  /* Full viewport height to center vertically */
+}
+
+.circle {
+  width: 145px;
+  /* Increased width */
+  height: 145px;
+  /* Increased height */
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  /* Adjust the font size as needed */
+  border: 3px solid transparent;
+  /* Default border */
+}
+
+.first-circle {
+  border-color: navy;
+}
+
+.second-circle {
+  border-color: darkgreen;
+}
+
+.third-circle {
+  border-color: #A9A9A9;
+}
+
+/**
+* ==============================================
+* Dot Pulse
+* ==============================================
+*/
+.loading-container {
+  &:only-child {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
+.dot-pulse {
+  position: relative;
+  left: -9999px;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #9880ff;
+  color: #9880ff;
+  box-shadow: 9999px 0 0 -5px #9880ff;
+  animation: dotPulse 1.5s infinite linear;
+  animation-delay: .25s;
+}
+
+.dot-pulse::before,
+.dot-pulse::after {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #2e59b1;
+  color: #2e59b1;
+}
+
+.dot-pulse::before {
+  box-shadow: 9984px 0 0 -5px #2e59b1;
+  animation: dotPulseBefore 1.5s infinite linear;
+  animation-delay: 0s;
+}
+
+.dot-pulse::after {
+  box-shadow: 10014px 0 0 -5px #2e59b1;
+  animation: dotPulseAfter 1.5s infinite linear;
+  animation-delay: .5s;
+}
+
+@keyframes dotPulseBefore {
+  0% {
+    box-shadow: 9984px 0 0 -5px #2e59b1;
+  }
+
+  30% {
+    box-shadow: 9984px 0 0 2px #2e59b1;
+  }
+
+  60%,
+  100% {
+    box-shadow: 9984px 0 0 -5px #2e59b1;
+  }
+}
+
+@keyframes dotPulse {
+  0% {
+    box-shadow: 9999px 0 0 -5px #2e59b1;
+  }
+
+  30% {
+    box-shadow: 9999px 0 0 2px #2e59b1;
+  }
+
+  60%,
+  100% {
+    box-shadow: 9999px 0 0 -5px #2e59b1;
+  }
+}
+
+@keyframes dotPulseAfter {
+  0% {
+    box-shadow: 10014px 0 0 -5px #2e59b1;
+  }
+
+  30% {
+    box-shadow: 10014px 0 0 2px #2e59b1;
+  }
+
+  60%,
+  100% {
+    box-shadow: 10014px 0 0 -5px #2e59b1;
+  }
+}
+
+.stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  padding: 2rem 0;
+  margin: 0 -5%;
+  overflow: hidden;
+  width: 20em;
+}
+
+.carousel-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.row {
+  display: flex;
+  justify-content: left;
+  padding: 1em 2em 0 2em;
+  margin-bottom: 10px;
+}
+
+.widget-container {
+  justify-content: left;
+  padding: 20px;
+}
+
+.widget {
+  width: auto;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 3px 4px 8px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  height: 40vh;
+}
+
+.widget-header {
+  font-size: 20px;
+  font-weight: bold;
+  width: 100%;
+  overflow: hidden;
+  height: auto;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  padding-top: 10px;
+  padding-bottom: 20px;
+}
+
+.widget-title {
+  font-size: 16px;
+  font-weight: 100;
+  width: 100%;
+  overflow: hidden;
+  height: auto;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 10px;
+}
+
+.scrollable-inspections {
+  margin-left: 10%;
+  margin-right: 10%;
+  margin-bottom: 2%;
+  font-size: 13px;
+  font-weight: 100;
+  width: 250px;
+  height: 15%;
+  overflow: auto;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 0;
+}
+
+.widget-title-small {
+  font-size: 12px;
+  font-weight: 100;
+  width: 100%;
+  overflow: hidden;
+  height: auto;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 10px;
+}
+
+.widget-body {
+  padding: 15px;
+  font-size: 10px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+
+.widget-description {
+  font-size: 12px;
+  margin-bottom: 5px;
+  text-align: center;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+}
+
+.widget-description-offline {
+  font-size: 12px;
+  color: grey;
+  text-align: center;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.widget-footer {
+  margin-top: 15px;
+  padding: 10px;
+  text-align: center;
+}
+
+.widget-button {
+  padding: 1em;
+  width: 95%;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  background-color: white;
+  margin: 1em;
+  margin: 0.4em;
+  text-align: center;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  box-shadow: 3px 4px 8px rgba(0, 0, 0, 0.1);
+  height: 40px;
+  font-size: 1em;
+  font-weight: 300;
+}
+
+.widget-offline {
+  border-color: grey;
+  border-bottom: 1px solid grey !important;
+  color: grey !important;
+}
+
+
+.button-offline {
+  border-color: grey;
+  color: grey;
+}
+
+.status-failed {
+  border-color: red;
+}
+
+.status-qls {
+  border-color: orange;
+}
+
+.status-success {
+  border-color: green;
+}
+
+.row-offline {
+  border-color: grey;
+  border-bottom: 1px solid grey !important;
+  color: grey !important;
+  background: lightgray !important;
+}
+
+.row-failed {
+  border-color: red;
+  border-bottom: 1px solid red !important;
+  color: red !important;
+}
+
+.row-qls {
+  border-color: orange;
+  border-bottom: 1px solid orange !important;
+  color: orange !important;
+
+}
+
+.widget-red-border {
+  border: 3px solid red !important;
+  border-bottom: 1px solid red !important;
+}
+
+.widget-orange-border {
+  border: 3px solid orange !important;
+  border-bottom: 1px solid orange !important;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  /* 5 tiles per row */
+  gap: 1rem;
+  /* Space between tiles */
+  padding: 1rem;
+  /* Optional: Adds padding around the grid */
+}
+
+.grid-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  display: flex;
+}
+
+.left-content {
+  width: 60%;
+}
+
+.right-content {
+  width: 40%;
+}
+
+.toggle-inline {
+  float: right;
+  position: relative;
+  z-index: 99;
+}
+
+.toggle-btn {
+  margin: 5px;
+}
+
+.ui-inputswitch {
+  width: 40px !important;
+}
+
+.group-header {
+  font-size: 25px;
+  font-weight: bold;
+}
+
+.station-dialog-container {
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.rejected {
+	font-weight: 700;
+	color: #FF5252;
+}
+
+.accepted {
+	font-weight: 700;
+	color: #66BB6A;
+}
+
+.carousel-header {
+  font-size: 15px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.carousel-chart {
+  width: 60%;
+}
+
+.carousel-pic {
+  width: 30%;
+  align-items: center;
+}
+
+.carousel-history {
+  width: 10%;
+}
+
+.carousel-history-link {
+  width: 10%;
+  align-items: right;
+}
+
+.cs-detail-popup-grid {
+  margin-top: 20px;
+  width: 100%;
+  display: flex;
+  grid-template-columns: repeat(3, 1fr);
+
+}
+
+
+
+::ng-deep .p-carousel .p-carousel-content .p-carousel-next::after {
+  width: 0.513rem;
+  height: 1.25rem;
+  font-size: 0.875rem;
+	font-family: Arial, sans-serif;
+  transform: scale(2, 4);
+}
+
+::ng-deep .p-carousel .p-carousel-content .p-carousel-prev {
+  width: 2.513rem;
+  height: 5.68rem;
+  border-radius: 25%;
+  border-right-color: #99bbff;
+  border-right-style: solid;
+  border-right-width: thin;
+  border-top-color: #99bbff;
+  border-top-style: solid;
+  border-top-width: thin;
+  border-bottom-color: #99bbff;
+  border-bottom-style: solid;
+  border-bottom-width: thin;
+  margin: 0 0 0 -5px;
+}
+
+::ng-deep .p-carousel .p-carousel-content .p-carousel-next {
+  width: 2.513rem;
+  height: 5.68rem;
+  border-radius: 25%;
+  border-left-color: #99bbff;
+  border-top-color: #99bbff;
+  border-bottom-color: #99bbff;
+
+  border-left-style: solid;
+  border-top-style: solid;
+  border-bottom-style: solid;
+  border-left-width: thin;
+  border-top-width: thin;
+  border-bottom-width: thin;
+
+  margin: 0 -5px 0 0;
+  outline: none !important;
+}
+
+.p-carousel-next:focus {
+  border-left-style: solid !important;
+  border-top-style: solid !important;
+  border-bottom-style: solid !important;
+  border-left-width: thin !important;
+  border-top-width: thin !important;
+  border-bottom-width: thin !important;
+  outline: none !important;
+}
+
+::ng-deep .p-carousel .p-carousel-content .p-carousel-next:focus {
+  border-left-style: solid !important;
+  border-top-style: solid !important;
+  border-bottom-style: solid !important;
+  border-left-width: thin !important;
+  border-top-width: thin !important;
+  border-bottom-width: thin !important;
+  outline: none !important;
+}
+
+::ng-deep .p-carousel .p-carousel-content .p-carousel-next:hover {
+  border-left-style: solid !important;
+  border-top-style: solid !important;
+  border-bottom-style: solid !important;
+  border-left-width: thin !important;
+  border-top-width: thin !important;
+  border-bottom-width: thin !important;
+  outline: none !important;
+}
+
+::ng-deep .p-carousel .p-carousel-content .p-carousel-next:enabled {
+  border-left-style: solid !important;
+  border-top-style: solid !important;
+  border-bottom-style: solid !important;
+  border-left-width: thin !important;
+  border-top-width: thin !important;
+  border-bottom-width: thin !important;
+  outline: none !important;
+}
+
+::ng-deep .p-carousel .p-carousel-content .p-carousel-next:enabled:hover {
+  border-left-style: solid !important;
+  border-top-style: solid !important;
+  border-bottom-style: solid !important;
+  border-left-width: thin !important;
+  border-top-width: thin !important;
+  border-bottom-width: thin !important;
+  outline: none !important;
+}
+
+::ng-deep .p-carousel .p-carousel-content .p-carousel-next:active {
+  border-left-style: solid !important;
+  border-top-style: solid !important;
+  border-bottom-style: solid !important;
+  border-left-width: thin !important;
+  border-top-width: thin !important;
+  border-bottom-width: thin !important;
+  outline: none !important;
+}
+
+::ng-deep .p-carousel .p-carousel-content .p-carousel-prev::after {
+  width: 0.513rem;
+  height: 1.25rem;
+  font-size: 0.875rem;
+	font-family: Arial, sans-serif;
+  transform: scale(2, 4);
+}
+
+::ng-deep .p-carousel .p-carousel-content .p-carousel-prev:focus {
+  box-shadow: none;
+}
