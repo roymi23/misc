@@ -1,0 +1,284 @@
+<section class="camera-status-section">
+  <form [formGroup]="cameraStatusSearchForm">
+    <div class="grid menu-grid">
+
+      <div class="col-9 grid-col">
+        <p class="label">Plant</p>
+        <select class="maivs-dropdown-list" (change)="onChangeCameraStatusPlant($event)" formControlName="plant"
+          [attr.disabled]="isSpinnerActivated ? true : null">
+          <option value=""> {{ cameraStatusSearch?.plant?.length > 0 ? 'Clear Plant' : 'Select Plant'}}</option>
+          <option *ngFor="let plant of plantlist" [ngValue]="plant.label">
+            {{ plant.value }}
+          </option>
+        </select>
+      </div>
+      <div class="col-1 grid-col">
+        <p class="label">Camera System</p>
+        <select class="maivs-dropdown-list" (change)="onChangeCameraStatusCameraSystem($event)"
+          formControlName="datasource" [attr.disabled]="isSpinnerActivated ? true : null">
+          <option value=""> {{ cameraStatusSearch?.datasource?.length > 0 ? 'Clear Camera System' : 'Select Camera
+            System'}}</option>
+          <option *ngFor="let ds of datasources" [ngValue]="ds.value">
+            {{ ds.label }}
+          </option>
+        </select>
+      </div>
+      <div class="col-9 grid-col">
+        <p class="label">Department</p>
+        <select class="maivs-dropdown-list" (change)="onChangeCameraStatusDepartment($event)"
+          formControlName="department" [attr.disabled]="isSpinnerActivated ? true : null">
+          <option value='' selected=true> {{ cameraStatusSearch?.department?.length > 0 ? 'Clear Dept.' : 'Select
+            Dept.'}}</option>
+          <option *ngFor="let dept of departments" [ngValue]="dept.label">
+            {{ dept.value }}
+          </option>
+        </select>
+      </div>
+      <div class="col-9 grid-col">
+        <p class="label">Line</p>
+        <select class="maivs-dropdown-list" (change)="onChangeCameraStatusLine($event)" formControlName="line"
+          [attr.disabled]="isSpinnerActivated ? true : null">
+          <option value='' selected=true> {{ cameraStatusSearch?.line?.length > 0 ? 'Clear Line' : 'Select Line'}}
+          </option>
+          <option *ngFor="let line of lines" [ngValue]="line.label">
+            {{ line.value }}
+          </option>
+        </select>
+      </div>
+      <div class="col-1 grid-col">
+        <p class="label">Station</p>
+        <select class="maivs-dropdown-list" (change)="onChangeCameraStatusStation($event)" formControlName="stations"
+          [attr.disabled]="isSpinnerActivated ? true : null">
+          <option value=""> {{ cameraStatusSearch?.stations?.length > 0 ? 'Clear Station' : 'Select Station'}}</option>
+          <option *ngFor="let station of stationList" [ngValue]="station.label">
+            {{ station.value }}
+          </option>
+        </select>
+      </div>
+      <div class="col-1 grid-col">
+        <p class="label">Equipment Id</p>
+        <select class="maivs-dropdown-list" (change)="onChangeCameraStatusEquipmentId($event)"
+          formControlName="equipmentId" [attr.disabled]="isSpinnerActivated ? true : null">
+          <option value='' selected=true> {{ cameraStatusSearch?.equipmentId?.length > 0 ? 'Clear Equipment Id' :
+            'Select Equipment Id'}}</option>
+          <option *ngFor="let ds of equipmentIds" [ngValue]="ds.label">
+            {{ ds.value }}
+          </option>
+        </select>
+      </div>
+      <div class="col-1 grid-col">
+        <p class="label">Inspection</p>
+        <select class="maivs-dropdown-list" (change)="onChangeCameraStatusInspection($event)"
+          formControlName="inspection" [attr.disabled]="isSpinnerActivated ? true : null">
+          <option value="" selected> {{ cameraStatusSearch?.inspection?.length > 0 ? 'Clear Inspection' : 'Select
+            Inspection'}}</option>
+          <option *ngFor="let insp of inspections" [ngValue]="insp.label">
+            {{ insp.value }}
+          </option>
+        </select>
+      </div>
+      <div class="col-9 grid-col">
+        <p class="label">Status</p>
+        <select class="maivs-dropdown-list" (change)="onChangeCameraStatusStatus($event)" formControlName="status"
+          [attr.disabled]="isSpinnerActivated ? true : null">
+          <option value="" selected> {{ cameraStatusSearch?.status?.length > 0 ? 'Clear Status' : 'Select Status'}}
+          </option>
+          <option *ngFor="let status of statusList" [ngValue]="status.value">
+            {{ status.label }}
+          </option>
+        </select>
+      </div>
+    </div>
+  </form>
+</section>
+<section class="camera-status-section" *ngIf="cameraStatusSearch?.plant.length > 0">
+  <div class="spinner" *ngIf="isSpinnerActivated">
+    <p-progressSpinner [style]="{width: '60px', height: '60px'}" animationDuration="1s"></p-progressSpinner>
+  </div>
+  <div class="circle-container">
+    <div class="circle first-circle">Total Camera
+      <br /><br /><span>{{ cameraStatusCounts.totalCount }}</span>
+    </div>
+    <div class="circle second-circle">Active Camera<br /><br /><span> {{ cameraStatusCounts.activeCount }}</span></div>
+    <div class="circle third-circle">Inactive
+      Camera<br /><br /><span> {{ cameraStatusCounts.offlineCount }}</span></div>
+  </div>
+</section>
+<section class="camera-status-section" *ngIf="cameraStatusSearch?.plant.length > 0">
+  <div *ngIf="loadingData" class="loading-container" data-title=".dot-pulse">
+    <div class="stage">
+      <div class="dot-pulse"></div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="left-content">
+      <p>
+        <span></span>
+      </p>
+    </div>
+    <div class="right-content">
+      <p class="toggle-inline">Tile View</p>
+      <div class="toggle-btn toggle-inline">
+        <p-inputSwitch id="tileSwitch" [(ngModel)]="tileView" style="width:100%" (onChange)="setDisplayView($event)">
+        </p-inputSwitch>
+      </div>
+      <p class="toggle-inline">Table View</p>
+    </div>
+  </div>
+  <div *ngIf="cameraStatusGroups.length > 0">
+    <div *ngFor="let group of cameraStatusGroups">
+      <p-table [value]="group.cameraStatusDetails" [paginator]="false" size="selectedSize" *ngIf="!tileView">
+        <ng-template pTemplate="caption">
+          <div class="flex items-center justify-between">
+            <span class="group-header">{{ group.area }} - {{ group.department }} - {{ group.line }}</span>
+          </div>
+        </ng-template>
+        <ng-template pTemplate="header">
+          <tr>
+            <th scope="col" style="width: 15%;">Station</th>
+            <th scope="col" style="width: 30;">Inspections</th>
+            <th scope="col" style="width: 15%;">Camera</th>
+            <th scope="col" style="width: 10%;">Failure Rate (%)</th>
+            <th scope="col" style="width: 10%;">QLS Rate (%)</th>
+            <th scope="col" style="width: 10%;">Success Rate (%)</th>
+            <th scope="col" style="width: 10%;">Last Updated</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-cameradetail let-i="index">
+          <tr
+            [ngClass]="{'row-offline': cameradetail.status === 'OFFLINE', 'row-failed': cameradetail.failurePercent >= 1, 'row-qls' : (cameradetail.qlsPercent >= 1 && cameradetail.failurePercent < 1)}"
+            (click)="showDialog(cameradetail)">
+            <td>{{ cameradetail.station }}</td>
+            <td>
+              <div class="scrollable-inspections" title="Inspections">
+                <div *ngFor="let task of cameradetail.taskDescription">
+                  <span>{{ task }}</span><br>
+                </div>
+              </div>
+            </td>
+            <td> {{cameradetail.equipmentId}}</td>
+            <td>{{cameradetail.failurePercent}}</td>
+            <td>{{cameradetail.qlsPercent}}</td>
+            <td>{{cameradetail.successPercent}}</td>
+            <td>{{cameradetail.lastUpdated}}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+      <div *ngIf="tileView">
+        <p-divider layout="horizontal" align="center">
+          <span class="widget-header">{{ group.area}} - {{ group.department}} - {{ group.line}}</span>
+        </p-divider>
+        <div class="grid-container">
+          <div class="grid-item" *ngFor="let cameradetail of group.cameraStatusDetails">
+            <div [ngClass]="{
+              'widget-offline': cameradetail.status === 'OFFLINE',
+              'widget-red-border': cameradetail.failurePercent >= 1,
+              'widget-orange-border': cameradetail.qlsPercent >= 1 && cameradetail.failurePercent < 1
+            }" class="widget">
+              <div class="widget-header" title="Station">
+                <span>{{cameradetail.station}}</span>
+              </div>
+              <div class="scrollable-inspections" title="Inspections">
+                <div *ngFor="let task of cameradetail.taskDescription">
+                  <span>{{ task }}</span><br>
+                </div>
+              </div>
+              <div class="widget-title-small" title="Camera">
+                <span>{{cameradetail.equipmentId}}</span>
+              </div>
+              <div class="widget-footer">
+                <button [ngClass]="{
+                  'button-offline': cameradetail.status === 'OFFLINE',
+                  'status-failed': cameradetail.status !== 'OFFLINE'
+                }" class="widget-button">Failure Rate: {{cameradetail.failurePercent}}%</button>
+                <button [ngClass]="{
+                  'button-offline': cameradetail.status === 'OFFLINE',
+                  'status-qls': cameradetail.status !== 'OFFLINE'
+                }" class="widget-button">QLS Rate: {{cameradetail.qlsPercent}}%</button>
+                <button [ngClass]="{
+                  'button-offline': cameradetail.status === 'OFFLINE',
+                  'status-success': cameradetail.status !== 'OFFLINE'
+                }" class="widget-button">Success Rate: {{cameradetail.successPercent}}%</button>
+              </div>
+              <div [ngClass]="{
+                'widget-description': cameradetail.status === 'OFFLINE',
+                'widget-description-offline': cameradetail.status !== 'OFFLINE'
+              }">
+                <span>Last updated: {{cameradetail.lastUpdated}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="warning-msg" *ngIf="cameraStatusGroups?.length === 0" style="background-color: white;">
+    <button pButton pRipple type="button" label="{{messageText}}" class="p-button-warning p-button-text"></button>
+  </div>
+</section>
+<div class="warning-msg" *ngIf="plantlist.length === 0" style="background-color: white;">
+  <button pButton pRipple type="button" label="{{authMessage}}" class="p-button-warning p-button-text"></button>
+</div>
+<div class="warning-msg message-div" *ngIf="cameraStatusSearch?.plant.length === 0" style="background-color: white;">
+  <button pButton pRipple type="button" label="{{messageText}}" class="p-button-warning p-button-text"></button>
+</div>
+
+<p-dialog [(visible)]="stationDialog" [style]="{
+  border: '2px solid grey',
+  width: '90%'
+}" (onHide)="clearDialogData()">
+  <p-header> <span>{{stationDetail.station}} - {{stationDetail.equipmentId}}</span></p-header>
+
+  <div style="margin-top:50px; width: 100%;">
+    <!-- Progress Spinner Loader -->
+    <div class="spinner" *ngIf="isSpinnerActivated">
+      <p-progressSpinner [style]="{width: '50px', height: '50px'}" animationDuration="5s"></p-progressSpinner>
+    </div>
+
+    <p-carousel [value]="popUpInspections" (onPage)="setPage($event)">
+
+      <ng-template pTemplate="header">
+        <div class="cs-detail-popup-grid">
+          <div class="carousel-pic">
+            <span class="carousel-pic carousel-header">Latest Image</span>
+          </div>
+          <div class="carousel-chart">
+            <span class="carousel-chart carousel-header">Past 24 Hour performance</span>
+          </div>
+          <div class="carousel-history">
+            <span class="carousel-history carousel-header">History</span>
+          </div>
+        </div>
+      </ng-template>
+
+      <ng-template let-item pTemplate="item" let-i="index">
+
+        <div class="cs-detail-popup-grid">
+          <div class="carousel-pic">
+            <span *ngIf="!item.latestImageUrl">No Image URL</span>
+            <img *ngIf="item.latestImageUrl" src="{{item.latestImageUrl}}" style="height:300px;width:300px;"
+              alt="inspection" />
+            <div class="carousel-caption" *ngIf="item.latestImageUrl">
+              <span class="decorate-anchor-text" style="font-size: 14px; color: black;">
+                {{item.name}}</span>
+              <span class="decorate-anchor-text" style="font-size: 14px; color: black;">
+                - captured at {{item.latestImageTimestamp | date:'short'}}
+              </span>
+            </div>
+          </div>
+          <div class="carousel-chart">
+            <canvas id="Chart{{ i }}" baseChart [datasets]="qlsHourlyChartDataSet" [labels]="chart_Labels"
+              [options]="chart_Options" [plugins]="chart_Plugins" [legend]="chart_Legend" type="line">
+            </canvas>
+          </div>
+          <div class="carousel-history">
+            <span class="decorate-anchor-text" style="font-size: 14px; color: black;">
+              <a (click)="closeDialogAndNavigate(item.name)" routerLink="/home-page">History</a>
+            </span>
+          </div>
+        </div>
+      </ng-template>
+    </p-carousel>
+  </div>
+</p-dialog>
