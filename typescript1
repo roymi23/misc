@@ -1,0 +1,804 @@
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { FormControl, FormGroup } from '@angular/forms';
+import { SelectItem } from 'primeng/api';
+import { Subscription } from 'rxjs';
+import { ShareSearchFieldService } from '../services/share-search-field.service';
+import { MaivsService } from '../services/maivs.service';
+import { SpinnerLoadingService } from '../services/spinner-loading.service';
+import { CameraStatusSearch, DateFormat, SaveSearch } from '../interfaces/save-search';
+import * as moment from 'moment';
+import { CommonComponent } from '../common/common.component';
+import { Carousel } from 'primeng/carousel';
+import { ChartDataset, ChartOptions } from 'chart.js';
+import { Router } from '@angular/router';
+import { DatePipe } from '@angular/common';
+
+@Component({
+	selector: 'camera-status',
+	templateUrl: './camera-status.component.html',
+	styleUrls: ['./camera-status.component.scss']
+})
+export class CameraStatusComponent implements OnInit, OnDestroy {
+	@ViewChild('camerastatuscarousel', { static: false }) carousel: Carousel;
+	apiSubGetInspections$: Subscription;
+	apiSubGetEquipment$: Subscription;
+	apiSubGetAllMaivsPlants$: Subscription;
+	apiSubGetDepartmentsByPlant$: Subscription;
+	apiSubGetLinesByPlant$: Subscription;
+	apiSubGetStationsByPlant$: Subscription;
+	apiSubGetCameraStatusCount$: Subscription;
+	apiSubGetCameraStatusDetails$: Subscription;
+
+	loadingData = false;
+	error: boolean;
+	authMessage: string;
+	messageText = '';
+	isSpinnerActivated = true;
+	cameraStatusSearch: CameraStatusSearch;
+	plantlist: SelectItem<string>[];
+	datasources: SelectItem<string>[];
+	departments: SelectItem<string>[];
+	lines: SelectItem<string>[];
+	stationList: SelectItem<string>[] = [];
+	equipmentIds: SelectItem<string>[] = [];
+	inspections: SelectItem<string>[] = [];
+	statusList: SelectItem<string>[] = [];
+	control: FormControl;
+	cameraStatusSearchForm: FormGroup;
+	cameraStatusGroups: any = [];
+	cameraStatusDetails: any = [];
+	cameraStatusCounts = {
+		activeCount: 0,
+		offlineCount: 0,
+		totalCount: 0
+	};
+	responsiveOptions: any[] = [
+		{
+			breakpoint: '1024px',
+			numVisible: 3,
+			numScroll: 3
+		}
+	];
+
+	selectedSize: any = 'small';
+	tileView = false;
+	stationDialog = false;
+	selectedStation: any = null;
+	stationDetail: any;
+	singleInspectionArray: any = [];
+	popUpInspections: any = [];
+	selectedChartType = 'line';
+	qlsHourlyLineChartCtx: CanvasRenderingContext2D;
+	qlsHourlyChartDataSet: ChartDataset[];
+	public chart_Labels = [];
+	public chart_Legend = false;
+	public chart_Plugins = [];
+
+	//For pop up screen chart
+	public chart_Options: ChartOptions = {
+		plugins: {
+			legend: {
+				display: false
+			},
+			tooltip: {
+				enabled: true, // Enable or disable tooltips
+				position: 'nearest', // Position of the tooltip
+				displayColors: false,
+				callbacks: {
+					label(context) {
+						const i = context.dataIndex;
+						return [`${context.dataset.data[i]['y']}`]; // Customize the label format
+					},
+					title(tooltipItems) {
+						return `Time: ${tooltipItems[0].label} hrs - No. of QLS Concerns:  `; // Customize the title format
+					}
+				}
+			}
+		},
+		interaction: {
+			mode: 'index',
+			intersect: false
+		},
+		parsing: {
+			xAxisKey: 'x',
+			yAxisKey: 'y'
+		},
+		responsive: true,
+		scales: {
+			x: {
+				beginAtZero: true,
+				min: Math.min(...this.chart_Labels), // Dynamically set min
+				ticks: {
+					display: false
+				},
+				title: {
+					color: 'rgb(16, 43, 78)',
+					font: {
+						family: 'Arial',
+						size: 16,
+						weight: 'bold'
+					},
+					display: true,
+					text: 'HOUR OF DAY'
+				},
+				grid: {
+					display: false
+				}
+			},
+			y: {
+				beginAtZero: true,
+				min: 0,
+				max: 50,
+				ticks: {
+					display: true,
+					stepSize: 5 // Set increments of 5
+				},
+				title: {
+					color: 'rgb(16, 43, 78)',
+					font: {
+						family: 'Arial',
+						size: 16,
+						weight: 'bold'
+					},
+					display: true,
+					text: 'QLS CONCERNS'
+				},
+				grid: {
+					display: false
+				}
+			}
+		},
+
+	};
+
+	navigationCustomProps = {
+		style: {
+			backgroundColor: 'purple',
+			color: 'white',
+			borderRadius: '20px'
+		}
+
+	};
+
+	constructor(private readonly maivsService: MaivsService,
+		private readonly router: Router,
+		public readonly commonComponent: CommonComponent,
+		private readonly datepipe: DatePipe,
+		private readonly shareSearchFieldService: ShareSearchFieldService,
+		private readonly spinnerLoadingService: SpinnerLoadingService) {
+		this.spinnerLoadingService.spinnerLoadingSubject.subscribe((flag) => {
+			this.isSpinnerActivated = flag;
+		});
+	}
+
+	ngOnDestroy() {
+		this.apiSubGetInspections$?.unsubscribe();
+		this.apiSubGetEquipment$?.unsubscribe();
+		this.apiSubGetAllMaivsPlants$?.unsubscribe();
+		this.apiSubGetDepartmentsByPlant$?.unsubscribe();
+		this.apiSubGetLinesByPlant$?.unsubscribe();
+		this.apiSubGetStationsByPlant$?.unsubscribe();
+		this.apiSubGetCameraStatusCount$?.unsubscribe();
+		this.apiSubGetCameraStatusDetails$?.unsubscribe();
+	}
+
+
+	ngOnInit(): void {
+		this.initializeCameraStatusSearch();
+		this.initCameraStatusSearchForm();
+		this.getCameraStatusMaivsPlants();
+		this.isSpinnerActivated = true;
+		this.spinnerLoadingService.spinnerLoadingSubject.next(this.isSpinnerActivated);
+		this.maivsService.plantsSubject.subscribe((plants) => {
+			this.plantlist = plants.map((pn: string) => ({
+				label: pn,
+				value: pn
+			}));
+			this.isSpinnerActivated = false;
+		});
+		if (!this.cameraStatusSearch?.plant) {
+			this.messageText = 'Please select a plant';
+		}
+		this.initStationDetails();
+	}
+	initStationDetails() {
+
+		this.stationDetail = {
+			plant: '',
+			area: '',
+			department: '',
+			line: '',
+			station: '',
+			equipmentId: '',
+			inspections: [{
+				name: '',
+				createdOn: '',
+				cycleTimestamp: '',
+				partDataEventTimestamp: '',
+				latestImageTimestamp: '',
+				latestImageUrl: '',
+				status: ''
+			}],
+			latestImageUrl: '',
+			status: ''
+		};
+
+	}
+
+
+	initializeCameraStatusSearch() {
+		// init basic the search filed data and shared
+		this.cameraStatusSearch = {
+			endDate: moment().format(DateFormat.MMsDDsYYYYHHsMMsSS),
+			startDate: moment().subtract(24, 'hours').format(DateFormat.MMsDDsYYYYHHsMMsSS),
+			plant: '',
+			datasource: '',
+			stations: [],
+			equipmentId: '',
+			area: '',
+			department: '',
+			line: '',
+			inspection: '',
+			status: ''
+		};
+	}
+
+	initCameraStatusSearchForm() {
+		let selectedPlant = '';
+		this.shareSearchFieldService.currentSearchData.subscribe(item => {
+			if (item?.plant) {
+				selectedPlant = item.plant;
+			}
+		});
+		this.cameraStatusSearchForm = new FormGroup({
+			plant: new FormControl({ value: selectedPlant, disabled: false }),
+			datasource: new FormControl({ value: '', disabled: false }),
+			department: new FormControl({ value: '', disabled: false }),
+			line: new FormControl({ value: '', disabled: false }),
+			stations: new FormControl({ value: [], disabled: false }),
+			equipmentId: new FormControl({ value: '', disabled: false }),
+			inspection: new FormControl({ value: '', disabled: false }),
+			status: new FormControl({ value: '', disabled: false })
+		});
+		this.onChangeCameraStatusPlant(null);
+	}
+
+
+	initDatasources(): void {
+		this.datasources = [
+			{ value: '55005', label: 'AiTRIZ' },
+			{ value: '52018', label: 'MAIVS' }
+		];
+	}
+
+	initStatusList(): void {
+		this.statusList = [
+			{ value: 'OFFLINE', label: 'Inactive' },
+			{ value: 'FAILED', label: 'Failed' },
+			{ value: 'QLS', label: 'QLS' }
+		];
+	}
+
+	initDepartments(): void {
+		this.apiSubGetDepartmentsByPlant$ = this.maivsService.getDepartments(this.getFilterRequestObj()).subscribe({
+			next: (deparmentList: any) => {
+				if (deparmentList && deparmentList.length > 0) {
+					this.departments = [];
+					this.departments = deparmentList.map((departmentName) => ({
+						label: departmentName,
+						value: departmentName
+					}));
+				}
+			},
+			complete: () => {
+				this.isSpinnerActivated = false;
+			},
+			error: (err) => {
+				this.maivsService.handleMaivsServiceErrors(err);
+			}
+		});
+	}
+
+	initLines(): void {
+		this.apiSubGetLinesByPlant$ = this.maivsService.getLines(this.getFilterRequestObj()).subscribe({
+			next: (linesList: any) => {
+				if (linesList && linesList.length > 0) {
+					this.lines = [];
+					this.lines = linesList.map((lineName) => ({
+						label: lineName,
+						value: lineName
+					}));
+				}
+			},
+			complete: () => {
+				this.isSpinnerActivated = false;
+			},
+			error: (err) => {
+				this.maivsService.handleMaivsServiceErrors(err);
+			}
+		});
+	}
+
+	initStations(): void {
+		this.apiSubGetStationsByPlant$ = this.maivsService.getStations(this.getFilterRequestObj()).subscribe({
+			next: (stationList: any) => {
+				if (stationList && stationList.length > 0) {
+					this.stationList = [];
+					this.stationList = stationList.map((stationName) => ({
+						label: stationName,
+						value: stationName
+					}));
+				}
+			},
+			complete: () => {
+				this.isSpinnerActivated = false;
+			},
+			error: (err) => {
+				this.maivsService.handleMaivsServiceErrors(err);
+			}
+		});
+	}
+
+	initEquipmentIds(): void {
+		this.apiSubGetEquipment$ = this.maivsService.getEquipmentIds(this.getFilterRequestObj()).subscribe({
+			next: (data: any) => {
+				if (data) {
+					this.equipmentIds = [];
+					data.forEach((item) => {
+						this.equipmentIds.push({
+							label: item,
+							value: item
+						});
+					});
+				}
+			},
+			complete: () => {
+				this.isSpinnerActivated = false;
+			},
+			error: (err) => {
+				this.maivsService.handleMaivsServiceErrors(err);
+			}
+		});
+	}
+
+	initInspections(): void {
+		this.apiSubGetInspections$ = this.maivsService.getTaskDescriptions(this.getFilterRequestObj()).subscribe({
+			next: (data: any) => {
+				if (data) {
+					this.inspections = [];
+					data.forEach((item) => {
+						this.inspections.push({
+							label: item,
+							value: item
+						});
+					});
+				}
+			},
+			complete: () => {
+				this.isSpinnerActivated = false;
+			},
+			error: (err) => {
+				this.maivsService.handleMaivsServiceErrors(err);
+			}
+		});
+	}
+
+	getCameraStatusMaivsPlants() {
+		this.plantlist = [];
+		this.apiSubGetAllMaivsPlants$ = this.maivsService.getAllMaivsPlants().subscribe({
+			next: (plantNames) => {
+				if (plantNames.length > 0) {
+					this.maivsService.rolesCheckSubject.next(true);
+					this.plantlist = plantNames.map((plantName) => ({
+						label: plantName,
+						value: plantName
+					}));
+				}
+			},
+			error: (err) => {
+				console.error(err);
+			},
+			complete: () => {
+				if ((this.plantlist.length <= 0)) {
+					this.authMessage = 'You are not authorized user to select plants.';
+				}
+			}
+		});
+	}
+
+	onChangeCameraStatusPlant(event): void {
+		this.resetFilters(['datasource', 'stations', 'equipmentId', 'inspection', 'status']);
+		this.cameraStatusSearch.plant = this.cameraStatusSearchForm.value.plant;
+		if (this.cameraStatusSearch.plant && this.cameraStatusSearch.plant !== '') {
+			this.getCameraStatusCount();
+			this.initFilters(['datasource', 'department', 'line', 'stations', 'equipmentId', 'inspection', 'status']);
+		}
+	}
+
+	onChangeCameraStatusCameraSystem(event): void {
+		this.resetFilters(['department', 'line', 'stations', 'equipmentId', 'inspection', 'status']);
+		this.cameraStatusSearch.datasource = this.cameraStatusSearchForm.value.datasource;
+		this.getCameraStatusCount();
+		this.initFilters(['department', 'line', 'stations', 'equipmentId', 'inspection', 'status']);
+	}
+
+	onChangeCameraStatusDepartment(event): void {
+		this.resetFilters(['line', 'stations', 'equipmentId', 'inspection', 'status']);
+		this.cameraStatusSearch.department = this.cameraStatusSearchForm.value.department;
+		this.getCameraStatusCount();
+		this.initFilters(['line', 'stations', 'equipmentId', 'inspection', 'status']);
+
+	}
+
+	onChangeCameraStatusLine(event): void {
+		this.resetFilters(['stations', 'equipmentId', 'inspection', 'status']);
+		this.cameraStatusSearch.line = this.cameraStatusSearchForm.value.line;
+		this.getCameraStatusCount();
+		this.initFilters(['stations', 'equipmentId', 'inspection', 'status']);
+	}
+
+	onChangeCameraStatusStation(event): void {
+		this.resetFilters(['equipmentId', 'inspection', 'status']);
+		this.cameraStatusSearch.stations = [];
+		if (this.cameraStatusSearchForm.value.stations.length > 0) {
+			this.cameraStatusSearch.stations.push(this.cameraStatusSearchForm.value.stations);
+		}
+		this.initFilters(['equipmentId', 'inspection', 'status']);
+	}
+
+	onChangeCameraStatusEquipmentId(event): void {
+		this.resetFilters(['inspection', 'status']);
+		this.cameraStatusSearch.equipmentId = this.cameraStatusSearchForm.value.equipmentId;
+		this.initFilters(['inspection', 'status']);
+	}
+
+	onChangeCameraStatusInspection(event): void {
+		this.resetFilters(['status']);
+		this.cameraStatusSearch.inspection = this.cameraStatusSearchForm.value.inspection;
+		this.initFilters(['status']);
+	}
+
+	onChangeCameraStatusStatus(event): void {
+		this.resetFilters([]);
+		this.cameraStatusSearch.status = this.cameraStatusSearchForm.value.status;
+		this.cameraStatusSearch.endDate = moment().format(DateFormat.MMsDDsYYYYHHsMMsSS);
+		if (this.cameraStatusSearch.status === '') {
+			this.cameraStatusSearch.startDate = moment().subtract(1, 'week').format(DateFormat.MMsDDsYYYYHHsMMsSS);
+		} else if (this.cameraStatusSearch.status === 'OFFLINE') {
+			this.cameraStatusSearch.startDate = moment().subtract(1, 'week').format(DateFormat.MMsDDsYYYYHHsMMsSS);
+		} else if (this.cameraStatusSearch.status === 'FAILED') {
+			this.cameraStatusSearch.startDate = moment().subtract(1, 'days').format(DateFormat.MMsDDsYYYYHHsMMsSS);
+		} else if (this.cameraStatusSearch.status === 'QLS') {
+			this.cameraStatusSearch.startDate = moment().subtract(1, 'days').format(DateFormat.MMsDDsYYYYHHsMMsSS);
+		}
+		this.initFilters([]);
+	}
+
+	getCameraStatusCount(): void {
+		this.isSpinnerActivated = true;
+		this.spinnerLoadingService.spinnerLoadingSubject.next(this.isSpinnerActivated);
+		console.log('Calling camera status count with department: ' + this.cameraStatusSearch.department);
+		this.apiSubGetCameraStatusCount$ = this.maivsService.getCameraStatusCounts(this.cameraStatusSearch).subscribe({
+			next: (data: any) => {
+				if (!data) {
+					this.messageText = 'No Camera count data found';
+				} else {
+					this.cameraStatusCounts = data;
+				}
+			},
+			complete: () => {
+				this.isSpinnerActivated = false;
+				this.spinnerLoadingService.spinnerLoadingSubject.next(this.isSpinnerActivated);
+			},
+			error: (err) => {
+				this.maivsService.handleMaivsServiceErrors(err);
+				this.messageText = 'Error loading Camera counts';
+				this.isSpinnerActivated = false;
+				this.spinnerLoadingService.spinnerLoadingSubject.next(this.isSpinnerActivated);
+			}
+		});
+	}
+
+	getCameraStatusDetails(): void {
+		this.loadingData = true;
+		this.isSpinnerActivated = true;
+		this.spinnerLoadingService.spinnerLoadingSubject.next(this.isSpinnerActivated);
+		this.apiSubGetCameraStatusDetails$ = this.maivsService.getCameraStatusDetails(this.cameraStatusSearch).subscribe({
+			next: (data: any[]) => {
+				if (!data) {
+					this.messageText = 'No Camera Details data found';
+				} else {
+					this.cameraStatusGroups = data;
+					if (this.cameraStatusGroups.length === 0) {
+						this.messageText = 'No Camera Details data found';
+					}
+				}
+				if (this.carousel) {
+					this.carousel.page = 0;
+				}
+			},
+			complete: () => {
+				this.loadingData = false;
+				this.isSpinnerActivated = false;
+				this.spinnerLoadingService.spinnerLoadingSubject.next(this.isSpinnerActivated);
+			},
+			error: (err) => {
+				this.loadingData = false;
+				this.maivsService.handleMaivsServiceErrors(err);
+				this.messageText = 'Error loading Camera Details';
+				this.isSpinnerActivated = false;
+				this.spinnerLoadingService.spinnerLoadingSubject.next(this.isSpinnerActivated);
+			}
+		});
+	}
+
+	resetFilters(filterNames: string[]): void {
+		if (filterNames.includes('datasource')) {
+			this.datasources = [];
+			this.cameraStatusSearchForm.get('datasource').setValue('');
+			this.cameraStatusSearch.datasource = '';
+		}
+		if (filterNames.includes('department')) {
+			this.departments = [];
+			this.cameraStatusSearchForm.get('department').setValue('');
+			this.cameraStatusSearch.department = '';
+		}
+		if (filterNames.includes('line')) {
+			this.lines = [];
+			this.cameraStatusSearchForm.get('line').setValue('');
+			this.cameraStatusSearch.line = '';
+		}
+		if (filterNames.includes('stations')) {
+			this.stationList = [];
+			this.cameraStatusSearchForm.get('stations').setValue([]);
+			this.cameraStatusSearch.stations = [];
+		}
+		if (filterNames.includes('equipmentId')) {
+			this.equipmentIds = [];
+			this.cameraStatusSearchForm.get('equipmentId').setValue('');
+			this.cameraStatusSearch.equipmentId = '';
+		}
+		if (filterNames.includes('inspection')) {
+			this.inspections = [];
+			this.cameraStatusSearchForm.get('inspection').setValue('');
+			this.cameraStatusSearch.inspection = '';
+		}
+		if (filterNames.includes('status')) {
+			this.statusList = [];
+			this.cameraStatusSearchForm.get('status').setValue('');
+			this.cameraStatusSearch.status = '';
+		}
+	}
+
+	initFilters(filterNames: string[]) {
+		if (filterNames.includes('datasource')) {
+			this.initDatasources();
+		}
+		if (filterNames.includes('department')) {
+			this.initDepartments();
+		}
+		if (filterNames.includes('line')) {
+			this.initLines();
+		}
+		if (filterNames.includes('stations')) {
+			this.initStations();
+		}
+		if (filterNames.includes('equipmentId')) {
+			this.initEquipmentIds();
+		}
+		if (filterNames.includes('inspection')) {
+			this.initInspections();
+		}
+		if (filterNames.includes('status')) {
+			this.initStatusList();
+		}
+		this.getCameraStatusDetails();
+	}
+
+	getFilterRequestObj() {
+		return {
+			endDate: moment().format(DateFormat.MMsDDsYYYY),
+			startDate: moment().subtract(1, 'months').format(DateFormat.MMsDDsYYYY),
+			plant: this.cameraStatusSearch.plant,
+			datasource: this.cameraStatusSearch.datasource,
+			department: this.cameraStatusSearch.department,
+			line: this.cameraStatusSearch.line,
+			stations: this.cameraStatusSearch.stations,
+			equipmentId: this.cameraStatusSearch.equipmentId,
+			inspection: this.cameraStatusSearch.inspection,
+			status: this.cameraStatusSearch.status
+		};
+	}
+
+	setDisplayView(e) {
+		console.log('setDisplayView called');
+		if (e.checked) {
+			this.tileView = true;
+		}
+		else {
+			this.tileView = false;
+			e.target.checked = false;
+		}
+	}
+	public customRowClass(cameradetail: any, rowIndex: number): string {
+
+		let cssClass = '';
+		if (cameradetail.status === 'OFFLINE') {
+			cssClass = 'widget-offline';
+		} else if (cameradetail.failurePercent >= 1) {
+			cssClass = 'widget-red-border';
+		} else if (cameradetail.qlsPercent >= 1 && cameradetail.failurePercent < 1) {
+			cssClass = 'widget-orange-border';
+		}
+
+		return cssClass;
+	}
+
+	showDialog(cameraDetail: any): void {
+
+		this.isSpinnerActivated = true;
+		this.spinnerLoadingService.spinnerLoadingSubject.next(this.isSpinnerActivated);
+
+		console.log('showDialog called with cameraDetail: ', cameraDetail);
+
+		this.maivsService.getStationDetails(this.cameraStatusSearch, cameraDetail).subscribe({
+			next: (data: any[]) => {
+				if (!data) {
+					this.messageText = 'No Station Details data found';
+				} else {
+					this.stationDetail = data;
+					this.popUpInspections = this.stationDetail.inspections;
+					if (this.stationDetail.length === 0) {
+						this.messageText = 'No Station Details data found';
+					}
+				}
+
+			},
+			complete: () => {
+				this.loadingData = false;
+				this.singleInspectionArray = [];
+				if (this.popUpInspections?.length > 0) {
+					this.singleInspectionArray.push(this.popUpInspections[0]);
+				}
+				this.qlsHourlyChartDataSet = [];
+				console.log('Count of popUpInspections: ', this.popUpInspections.length);
+				this.buildChartLabel(this.singleInspectionArray[0].qlsConcernsHourlyCounts);
+				this.initQLSHourlyChartDataPoints();
+				console.log('qlsHourlyChartDataSets: ', this.qlsHourlyChartDataSet);
+				this.isSpinnerActivated = false;
+				this.spinnerLoadingService.spinnerLoadingSubject.next(this.isSpinnerActivated);
+
+			},
+			error: (err) => {
+				this.loadingData = false;
+				this.maivsService.handleMaivsServiceErrors(err);
+				this.messageText = 'Error loading Station Details';
+				this.singleInspectionArray = [];
+			}
+		});
+
+		this.stationDialog = true;
+	}
+
+	initQLSHourlyChartDataPoints() {
+		const qlsHourlyChartData = this.singleInspectionArray[0]?.qlsConcernsHourlyCounts;
+		const inspectionName = this.singleInspectionArray[0]?.name;
+		console.log('initQLSHourlyChartDataPoints called with data: ', this.singleInspectionArray[0]);
+		this.buildChartLabel(qlsHourlyChartData);
+
+		this.qlsHourlyChartDataSet = [];
+		this.qlsHourlyChartDataSet.push(
+			{
+				label: inspectionName,
+				backgroundColor: 'rgba(135, 206, 235, 1)', // skyblue
+				hoverBackgroundColor: 'rgba(135, 206, 235, 1)', // skyblue
+				fill: false,
+				tension: 0.1,
+				borderColor: 'rgba(135, 206, 235, 1)', // skyblue
+				pointBackgroundColor: 'rgba(135, 206, 235, 1)', // skyblue
+				data: this.buildDataPoints(qlsHourlyChartData),
+			}
+
+		);
+	}
+
+
+	buildChartLabel(data: any) {
+		this.chart_Labels = [];
+		const labels = new Set();
+		if (data) {
+			data.forEach(item => {
+				if (item) {
+					const keys = Object.keys(item.hourOfDay);
+					keys.forEach(attr => labels.add(attr));
+				}
+			});
+		}
+
+		labels.forEach(label => this.chart_Labels.push(label));
+
+		this.chart_Options.scales.x['labels'] = this.chart_Labels;
+		this.chart_Options.scales.x['min'] = Math.min(...this.chart_Labels);
+
+	}
+
+	buildDataPoints(data: any) {
+		const points: any = [];
+		data.forEach((entry: any) => {
+			points.push({
+				x: entry.hourOfDay,
+				y: entry.count
+			});
+
+		});
+
+		return points;
+	}
+
+	setPage(e: { page: number }) {
+		console.log('setPage called with page: ', e.page);
+		this.singleInspectionArray = [];
+		this.singleInspectionArray.push(this.popUpInspections[e.page]);
+		this.buildChartLabel(this.singleInspectionArray[0].qlsConcernsHourlyCounts);
+		this.initQLSHourlyChartDataPoints();
+	}
+
+	closeDialogAndNavigate(selectedInspection: string) {
+		this.stationDialog = false;
+
+		const endDate = moment().format(DateFormat.MMsDDsYYYY);
+		const startDate = moment().subtract(3, 'months').format(DateFormat.MMsDDsYYYY);
+
+		const saveSearch = {
+			plant: this.stationDetail.plant,
+			datasource: this.cameraStatusSearchForm.get('datasource')?.value ?? '52018',
+			equipmentId: this.stationDetail.equipmentId,
+			stations: [],
+			endDate,
+			startDate,
+		} as SaveSearch;
+		saveSearch['searchName'] = 'history from camera status';
+		saveSearch['stations'].push(this.stationDetail.station);
+		if (this.commonComponent.startDate) {
+			saveSearch['startDate'] = this.commonComponent.startDate;
+		}
+		if (this.commonComponent.endDate) {
+			saveSearch['endDate'] = this.commonComponent.endDate;
+		}
+
+		this.clearDialogData();
+
+		this.router.navigate(['/home-page']);
+		setTimeout(() => {
+			this.shareSearchFieldService.publishSelectedSavedSearch(saveSearch);
+		}, 1500);
+
+	}
+
+	clearDialogData() {
+		this.stationDetail = {
+			plant: '',
+			area: '',
+			department: '',
+			line: '',
+			station: '',
+			equipmentId: '',
+			inspections: [{
+				name: '',
+				createdOn: '',
+				cycleTimestamp: '',
+				partDataEventTimestamp: '',
+				latestImageTimestamp: '',
+				latestImageUrl: '',
+				status: ''
+			}],
+			latestImageUrl: '',
+			status: ''
+		};
+		this.popUpInspections = [];
+		this.singleInspectionArray = [];
+		this.selectedStation = null;
+		this.stationDialog = false;
+	}
+
+}
