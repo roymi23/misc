@@ -1,0 +1,596 @@
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable indent */
+import { Component, ElementRef, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
+import { BarType, SaveSearch, FilterAndSortObj } from 'src/app/interfaces/save-search';
+import { MaivsService } from 'src/app/services/maivs.service';
+import { ShareSearchFieldService } from 'src/app/services/share-search-field.service';
+import { MessageService, PrimeNGConfig, SortEvent } from 'primeng/api';
+import { Subscription } from 'rxjs';
+import * as FileSaver from 'file-saver';
+import { ServiceUtils } from 'src/app/services/chartsService/service-utils';
+import * as ExcelJS from 'exceljs/dist/exceljs.min';
+import { Carousel } from 'primeng/carousel';
+
+
+@Component({
+	selector: 'failure-inspection-table',
+	templateUrl: './failure-inspection-table.component.html',
+	styleUrls: ['./failure-inspection-table.component.scss']
+})
+export class FailureInspectionTableComponent implements OnInit, OnDestroy {
+	loadingData = false;
+	isFilterValueValid = true;
+	apiSubGetFailuresByInspectionByPage$: Subscription;
+	apiSubGetFailedInspection$: Subscription;
+	apiGetTotalFailuresByInspectionCount$: Subscription;
+	currentSearchDataSubscription$: Subscription;
+	statusChangeSubjectSubscription$: Subscription = undefined;
+
+
+	@ViewChildren('compareCheckboxes') compareCheckboxes: QueryList<ElementRef>;
+	pageNo = 1;
+	inspections: any = [];
+	compareInspections: any = [];
+	allInspections: any = [];
+	display = false;
+	showExportDialog = false;
+	selectedInspections: any[];
+	inspectionData: any = [];
+	searchContent: SaveSearch;
+	filterAndSortObj: FilterAndSortObj;
+	inspectionsCountByStation = '';
+	totalNoPages = 1;
+	totalRecords = 0;
+	recordPendings = 0;
+	pageSize = 100;
+	start = 1;
+	end = 100;
+	selectedStatus = '';
+	barChange: BarType;
+	displayFailed = false;
+	messageText = 'No station selected or inspection not found.';
+	searchText = '';
+	failedCount = 0;
+	passedCount = 0;
+	isSpinnerActivated = false;
+	inspectionTypesText = '';
+	isExporting = false;
+	exportFormat = '';
+	exportCount = 0;
+	compareError = false;
+	showTable = true;
+	statuses: any[];
+	qlsStatuses: any[];
+	selectedFilterValue = '';
+	selectedFilterName = '';
+	sortName = '';
+	sortOrder = 0;
+	@ViewChild('pTable') pTable: any;
+	galleryView = false;
+	compareView = false;
+  compareGalleryView = false;
+  singleInspectionArray: any = [];
+  singleCompareArray: any = [];
+  galleryPreviousCalled = false;
+  @ViewChild('inspectionsCarousel') inspectionsCarousel: Carousel;
+
+  	constructor(private readonly maivsService: MaivsService, private readonly toastMessageService: MessageService,
+    	private readonly shareSearchField: ShareSearchFieldService, private readonly config: PrimeNGConfig,
+    	private readonly serviceUtils: ServiceUtils) { }
+
+
+	ngOnDestroy(): void {
+		this.apiSubGetFailuresByInspectionByPage$?.unsubscribe();
+		this.apiSubGetFailedInspection$?.unsubscribe();
+		this.apiGetTotalFailuresByInspectionCount$?.unsubscribe();
+		this.currentSearchDataSubscription$.unsubscribe();
+		if (this.statusChangeSubjectSubscription$) {
+			this.statusChangeSubjectSubscription$.unsubscribe();
+		}
+	}
+
+	ngOnInit(): void {
+		this.searchContent = JSON.parse(window.sessionStorage.getItem('unsavedSearch'));
+		this.selectedInspections = [];
+		this.statuses = [
+			{ label: 'ALL', value: '' },
+			{ label: 'PASS', value: 'Accept' },
+			{ label: 'FAIL', value: 'Reject' }
+		];
+		this.qlsStatuses = [
+			{ label: 'ALL', value: '' },
+			{ label: 'QLS FAIL', value: 'QLSFAIL' },
+			{ label: 'NO QLS', value: 'NOQLS' },
+		];
+		this.filterAndSortObj = {
+			filterName: '',
+			filterValue: '',
+			sortName: '',
+			sortOrder: ''
+		};
+		this.shareSearchField.currentSelectedSavedSearchData.subscribe(data => {
+			this.searchContent = data;
+			this.initTable(this.searchContent, this.pageNo);
+		});
+		this.currentSearchDataSubscription$ = this.shareSearchField.currentSearchData.subscribe(data => {
+			this.searchContent = data;
+			this.reset();
+		});
+	}
+
+
+	initTable(searchContent: SaveSearch, pageNo: number): void {
+		this.messageText = 'Loading Inspections Data...';
+		if (this.pageSize === this.recordPendings) {
+			this.pageSize = this.serviceUtils.pageSize;
+		}
+		this.inspections = [];
+		this.loadingData = true;
+		if (this.showInspectionTable()) {
+			this.maivsService.getInspectionCount(this.searchContent, this.filterAndSortObj).subscribe((response: number) => {
+				this.totalRecords = parseInt(String(response), 10);
+			});
+			this.apiSubGetFailuresByInspectionByPage$ =
+				this.maivsService.getFailuresByInspectionByPage(searchContent, this.filterAndSortObj, pageNo, this.pageSize).subscribe({
+					next: (data: any) => {
+						if (data && data.length > 0) {
+							this.totalNoPages = Math.ceil(this.totalRecords / this.pageSize);
+						}
+						data.forEach(item => {
+							if (item['status'] === 'Accept') {
+								item['status'] = 'PASS';
+							} else if (item['status'] === 'Reject') {
+								item['status'] = 'FAIL';
+							}
+							this.inspections.push(item);
+						});
+						this.loadingData = false;
+            this.extractResultsetFilterValues();
+					},
+					error: (error) => {
+						this.maivsService.handleMaivsServiceErrors(error);
+						this.messageText = 'No inspections found for the selected criteria.';
+					},
+					complete: () => {
+						this.loadingData = false;
+						if (this.galleryView) {
+							const toggleSwitch = document.getElementById('galleryswitch');
+							if (this.galleryPreviousCalled) {
+								this.triggerEvent(toggleSwitch, 'onChange', { display: 'galleryPrev' });
+							} else {
+								this.triggerEvent(toggleSwitch, 'onChange', { display: 'galleryNext' });
+							}
+
+						}
+						if (this.selectedInspections && this.selectedInspections.length > 0) {
+							this.selectedInspections = [];
+						}
+
+					}
+				});
+			console.log('total records', this.totalRecords);
+		} else {
+			this.messageText = 'No inspections found for the selected criteria.';
+		}
+	}
+
+	showInspectionTable() {
+		return this.searchContent.plant && this.searchContent.plant.length > 0
+			&& (this.searchContent.stations && this.searchContent.stations.length > 0
+				|| this.searchContent.equipmentId && this.searchContent.equipmentId.length > 0
+				|| this.searchContent.inspection && this.searchContent.inspection.length > 0);
+	}
+
+	getDisplayTypeText() {
+		if (this.maivsService.filtersStates.failed === true && this.maivsService.filtersStates.passed === false) {
+			return 'failed';
+		} else if (this.maivsService.filtersStates.failed === false && this.maivsService.filtersStates.passed === true) {
+			return 'passed';
+		} else if (this.maivsService.filtersStates.qlsFailed === true && this.maivsService.filtersStates.passed === false
+			&& this.maivsService.filtersStates.failed === false) {
+			return 'QLS failed';
+		}
+		return '';
+	}
+
+	showPassedInspections() {
+		if (this.maivsService.filtersStates.passed === true && this.maivsService.filtersStates.failed === true) {
+			return this.passedCount + this.failedCount;
+		} else if (this.maivsService.filtersStates.passed === true && this.maivsService.filtersStates.failed === false) {
+			return this.passedCount;
+		} else if (this.maivsService.filtersStates.passed === false && this.maivsService.filtersStates.failed === true) {
+			return this.failedCount;
+		} else {
+			return this.passedCount + this.failedCount;
+		}
+	}
+
+	showDialog(inspection: any): void {
+		this.display = true;
+		this.showTable = false;
+		this.compareView = true;
+		this.galleryView = false;
+		this.inspectionData = [];
+		this.inspectionData.push(inspection);
+	}
+
+	showMultipleInspection(): void {
+
+
+		if (this.selectedInspections && this.selectedInspections.length > 0) {
+			this.inspectionData = this.selectedInspections;
+			this.loadingData = false;
+			this.showTable = false;
+			this.display = false;
+			this.compareView = true;
+			this.galleryView = false;
+			this.compareGalleryView = false;
+			this.singleCompareArray = [];
+			this.singleCompareArray.push(this.selectedInspections[0]);
+		}
+
+	}
+
+	addSelectedInspections(inspection, event): void {
+		const isChecked: boolean = event.target.checked;
+		if (!this.selectedInspections) {
+			this.selectedInspections = [];
+		}
+		if (isChecked) {
+			this.selectedInspections.push(inspection);
+		} else if (this.selectedInspections.length > 0) {
+			const index = this.selectedInspections.indexOf(inspection);
+			if (index > -1) {
+				this.selectedInspections.splice(index, 1);
+			}
+		}
+		if (this.selectedInspections.length > 6) {
+			this.compareError = true;
+		} else {
+			this.compareError = false;
+		}
+	}
+
+	getPageCount() {
+		return Math.ceil(this.totalRecords / this.serviceUtils.pageSize);
+	}
+
+
+	next() {
+		if (!this.isLastPage() && !this.displayFailed) {
+			const nextPageNumber = this.pageNo + 1;
+			this.initTable(this.searchContent, nextPageNumber);
+			this.recordPendings = (this.totalRecords - (this.pageNo * this.pageSize));
+			this.start = nextPageNumber === 1 ? 0 : (this.start + this.pageSize);
+			const tempPageSize = this.recordPendings > this.pageSize ? this.pageSize : this.recordPendings;
+			this.end = nextPageNumber === 1 ? this.pageSize : (this.end + tempPageSize);
+			if (this.end > this.totalRecords) {
+				this.end = this.totalRecords;
+			}
+			if (this.recordPendings < this.pageSize) {
+				this.pageSize = this.recordPendings;
+			}
+			this.pageNo = nextPageNumber;
+		}
+	}
+
+	prev() {
+		if (!this.displayFailed) {
+			if (this.pageNo > 1) {
+				this.pageNo = this.pageNo - 1;
+				this.start = this.start - this.serviceUtils.pageSize;
+				this.end = this.end - this.pageSize;
+				this.initTable(this.searchContent, this.pageNo);
+			} else {
+				this.pageNo = 1;
+				this.initTable(this.searchContent, this.pageNo);
+			}
+
+		}
+	}
+
+	triggerEvent = (el, eventType, detail) =>
+		el.dispatchEvent(new CustomEvent(eventType, { detail }));
+
+	galleryNext() {
+		console.log('galleryNext called');
+		if (!this.isLastPage() && !this.displayFailed) {
+			const nextPageNumber = this.pageNo + 1;
+			this.initTable(this.searchContent, nextPageNumber);
+			this.recordPendings = (this.totalRecords - (this.pageNo * this.pageSize));
+			this.start = nextPageNumber === 1 ? 0 : (this.start + this.pageSize);
+			const tempPageSize = this.recordPendings > this.pageSize ? this.pageSize : this.recordPendings;
+			this.end = nextPageNumber === 1 ? this.pageSize : (this.end + tempPageSize);
+			if (this.end > this.totalRecords) {
+				this.end = this.totalRecords;
+			}
+			if (this.recordPendings < this.pageSize) {
+				this.pageSize = this.recordPendings;
+			}
+			this.pageNo = nextPageNumber;
+
+		}
+	}
+
+	galleryPrev() {
+		console.log('galleryPrev called');
+		if (!this.displayFailed) {
+			this.galleryPreviousCalled = true;
+			if (this.pageNo > 1) {
+				this.pageNo = this.pageNo - 1;
+				this.start = this.start - this.serviceUtils.pageSize;
+				this.end = this.end - this.pageSize;
+				this.initTable(this.searchContent, this.pageNo);
+			} else {
+				this.pageNo = 1;
+				this.initTable(this.searchContent, this.pageNo);
+			}
+
+
+		}
+	}
+
+	reset() {
+		this.pageNo = 1;
+		this.start = 1;
+		this.end = this.serviceUtils.pageSize;
+		this.initTable(this.searchContent, this.pageNo);
+	}
+
+	isLastPage(): boolean {
+		return this.pageNo === Math.ceil(this.totalRecords / this.serviceUtils.pageSize);
+	}
+
+	isFirstPage(): boolean {
+		//
+		return this.pageNo === 1;
+	}
+
+	onClear() {
+		this.selectedFilterValue = '';
+		this.isFilterValueValid = true;
+		this.onFilterChange('', '', '', '', true);
+	}
+
+	customSort(event: SortEvent) {
+		if (this.sortName !== event.field) {
+			this.sortOrder = 0;
+		}
+		this.sortName = event.field;
+		let sortDirection = this.sortOrder === 0 || this.sortOrder === -1 ? 'asc' : 'desc';
+		this.sortOrder = this.sortOrder === 0 || this.sortOrder === -1 ? 1 : -1;
+		//if Status reverse direction because the actual status is translated to PASS or FAIL
+		if (this.sortName === 'status') {
+			sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+		}
+		this.onFilterChange(this.filterAndSortObj.filterValue, this.filterAndSortObj.filterName, this.sortName, sortDirection, false);
+		return this.sortOrder;
+	}
+
+	onFilterChange(value: string, filterName: string, sortName: string, sortDirection: string, resetSortOrder: boolean = true) {
+		if (this.isFilterValueValid) {
+			if (resetSortOrder) {
+				this.sortOrder = 0;
+			}
+			this.pageNo = 1;//reset page number to 1
+			this.messageText = 'Loading Inspections Data...';
+			this.filterAndSortObj = {
+				filterName,
+				filterValue: value,
+				sortName,
+				sortOrder: sortDirection
+			};
+			if (this.pageSize === this.recordPendings) {
+				this.pageSize = this.serviceUtils.pageSize;
+			}
+			this.inspections = [];
+			this.loadingData = true;
+			this.maivsService.getInspectionCount(this.searchContent, this.filterAndSortObj).subscribe((response: number) => {
+				this.totalRecords = parseInt(String(response), 10);
+			});
+			this.maivsService
+				.getFailuresByInspectionByPage(this.searchContent, this.filterAndSortObj, this.pageNo, this.pageSize)
+				.subscribe({
+					next: (data: any) => {
+						if (data && data.length > 0) {
+							this.totalNoPages = Math.ceil(this.totalRecords / this.pageSize);
+						}
+						data.forEach(item => {
+							if (item['status'] === 'Accept') {
+								item['status'] = 'PASS';
+							} else if (item['status'] === 'Reject') {
+								item['status'] = 'FAIL';
+							}
+							this.inspections.push(item);
+						});
+						this.loadingData = false;
+
+					},
+					error: (error) => {
+						this.maivsService.handleMaivsServiceErrors(error);
+						this.messageText = 'No station selected or inspection not found.';
+					},
+					complete: () => {
+						this.loadingData = false;
+						if (this.galleryView === true) {
+							const toggleSwitch = document.getElementById('galleryswitch');
+							this.triggerEvent(toggleSwitch, 'onChange', { display: 'galleryNext' });
+						}
+
+					}
+				});
+		}
+	}
+
+	validate() {
+		if (this.sanitizeVin(this.selectedFilterValue).length === 0
+			|| this.sanitizeVin(this.selectedFilterValue).length >= 4) {
+			this.isFilterValueValid = true;
+		} else {
+			this.isFilterValueValid = false;
+		}
+	}
+
+	sanitizeVin(vin: string) {
+		return vin.replace(/\s/g, '');
+	}
+
+	exportTo(format) {
+		this.exportFormat = format;
+		this.showExportDialog = true;
+	}
+
+	getCurrentButtonLabel() {
+		return `Export current page (${this.inspections.length} Records)`;
+	}
+
+	getAllRecordsButtonLabel() {
+		return `Export All Pages. (${this.totalRecords} Records)`;
+	}
+
+	handleExport(exportAll: boolean) {
+		this.exportCount = this.pageSize;
+		this.isExporting = true;
+		this.exportExcel(false);
+		this.isExporting = false;
+	}
+
+	handleExportAll() {
+		this.exportCount = this.totalRecords;
+		this.isExporting = true;
+		this.maivsService.getFailuresByInspectionByPage
+			(this.searchContent, this.filterAndSortObj, 0, this.totalRecords).subscribe((data) => {
+				this.allInspections = data;
+				this.exportExcel(true);
+				this.isExporting = false;
+			});
+	}
+
+	exportExcel(exportAll: boolean) {
+		if (this.exportFormat === 'XLS') {
+			this.exportToXlsx(exportAll ? this.allInspections : this.inspections);
+		}
+	}
+
+	async exportToXlsx(data: any) {
+		const EXCEL_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8';
+		const EXCEL_EXTENSION = '.xlsx';
+		const workbook = new ExcelJS.Workbook();
+		const worksheet = workbook.addWorksheet('Inspections');
+		worksheet.columns = [
+			{ header: 'Plant', key: 'plant' },
+			{ header: 'Station', key: 'station' },
+			{ header: 'VIN/CID', key: 'vin' },
+			{ header: 'Rotation', key: 'rotation' },
+			{ header: 'Timestamp', key: 'timestamp' },
+			{ header: 'Equipment Id', key: 'equipmentId' },
+			{ header: 'Inspection', key: 'inspection' },
+			{ header: 'Status', key: 'status' },
+			{ header: 'QLS Status', key: 'qlsStatus' },
+			{ header: 'Image Url', key: 'picturePath' }
+		];
+		worksheet.addRows(data);
+		workbook.xlsx.writeBuffer().then((datablob) => {
+			const blob = new Blob([datablob], {
+				type: EXCEL_TYPE,
+			});
+			FileSaver.saveAs(blob, 'Inspections - ' + new Date().getTime() + EXCEL_EXTENSION);
+		});
+	}
+
+	showHideTable() {
+		this.showTable = !this.showTable;
+	}
+
+
+	setDisplayView(e) {
+		console.log('setDisplayView called');
+		if (e.checked) {
+			this.galleryView = true;
+			this.singleInspectionArray = [];
+			this.singleInspectionArray.push(this.inspections[0]);
+		}
+		else if (e.detail) {
+
+			this.galleryView = false;
+			e.target.checked = false;
+
+			const index = 0;
+			if (e.detail.display === 'galleryNext') {
+				console.log('e.detail.display = galleryNext');
+
+				setTimeout(() => {
+					this.singleInspectionArray = [];
+					this.singleInspectionArray.push(this.inspections[index]);
+					this.galleryView = true;
+					e.target.checked = true;
+				}, 1500);
+
+			}
+			else if (e.detail.display === 'galleryPrev') {
+				console.log('e.detail.display = galleryPrev');
+				this.galleryPreviousCalled = false;
+				setTimeout(() => {
+					this.inspectionsCarousel.page = this.inspections.length - 1;
+					this.triggerEvent(this.inspectionsCarousel, 'onPage', { page: index });
+
+				}, 1500);
+
+				this.galleryView = true;
+				e.target.checked = true;
+			}
+
+
+		} else {
+			console.log('setting gallery view to false');
+			this.galleryView = false;
+		}
+	}
+
+	setPage(e) {
+		console.log('setPage called with page = ' + (e.page ? e.page : 0));
+		const currentPage = e.page ? e.page : 0;
+		this.singleInspectionArray = [];
+		this.singleInspectionArray.push(this.inspections[currentPage]);
+	}
+
+	setComparePage(e) {
+		this.singleCompareArray = [];
+		this.singleCompareArray.push(this.inspectionData[e.page]);
+	}
+
+	setCompareDisplayView(e) {
+		if (e.checked) {
+			this.compareGalleryView = true;
+		} else {
+			this.showTable = false;
+			this.compareView = true;
+			this.galleryView = false;
+			this.compareGalleryView = false;
+			this.display = false;
+		}
+	}
+
+	closeCompare(): void {
+		this.compareCheckboxes.forEach((element) => {
+			element.nativeElement.checked = false;
+		});
+		this.selectedInspections = [];
+		this.showTable = true;
+		this.compareView = false;
+		this.compareGalleryView = false;
+		this.galleryView = false;
+		this.display = false;
+	}
+
+  extractResultsetFilterValues() {
+    const resultsetMap: Map<string, string[]> = new Map();
+    const uniqueStations: string[] = Array.from(new Set(this.inspections.map(item => item.station)));
+    const uniqueDatasources: string[] = Array.from(new Set(this.inspections.map(item => item.datasource)));
+    const uniqueEquipments: string[] = Array.from(new Set(this.inspections.map(item => item.equipmentId)));
+    resultsetMap.set('stations', uniqueStations);
+    resultsetMap.set('datasources', uniqueDatasources);
+    resultsetMap.set('equipments', uniqueEquipments);
+    this.shareSearchField.updateResultsetSource(resultsetMap);
+  }
+}
