@@ -1,0 +1,479 @@
+<section class="failure-inspection-section" *ngIf="showInspectionTable()">
+	<div>
+		<h3 class="text-title">View Inspections Table
+			<i *ngIf="!showTable" class="fa-solid fa-angle-down" (click)="showHideTable()"></i>
+			<i *ngIf="showTable" class="fa-solid fa-angle-up" (click)="showHideTable()"></i>
+		</h3>
+	</div>
+	<div class="container" *ngIf="!compareView">
+		<div class="left-content">
+			<p>
+				<span></span>
+			</p>
+		</div>
+		<div class="right-content">
+			<p class="toggle-inline">Gallery View</p>
+			<div class="toggle-btn toggle-inline">
+				<p-inputSwitch id="galleryswitch" [(ngModel)]="galleryView" style="width:60%"
+					(onChange)="setDisplayView($event)">
+				</p-inputSwitch>
+			</div>
+			<p class="toggle-inline">Table View</p>
+		</div>
+	</div>
+
+	<div style="margin-top:10px" *ngIf="galleryView">
+		<p-table #pTable1 [value]="singleInspectionArray" [paginator]="false" [showCurrentPageReport]="true">
+			<ng-template pTemplate="header">
+				<tr style="height: 52px;">
+					<th id="inspections-table-compare-station" class="custom-tr">Station</th>
+					<th id="inspections-table-compare-vin" class="custom-tr">VIN/CID</th>
+					<th id="inspections-table-compare-rotation-no" class="custom-tr">Rotation #</th>
+					<th id="inspections-table-compare-time" class="custom-tr">Time Stamp</th>
+					<th id="inspections-table-compare-inspection" class="custom-tr">Inspection</th>
+					<th id="inspections-table-compare-status" class="custom-tr">Status</th>
+					<th id="inspections-table-compare-qls" class="custom-tr">QLS</th>
+				</tr>
+			</ng-template>
+			<ng-template pTemplate="body" let-inspection>
+				<tr>
+					<td>
+						{{inspection.station}}
+					</td>
+					<td>
+						{{inspection.vin}}
+					</td>
+					<td>
+						{{inspection.rotation}}
+					</td>
+					<td>
+						{{inspection.timestamp}}
+					</td>
+					<td>
+						{{inspection.inspection}}
+					</td>
+					<td>
+						<div [ngClass]="{'accepted': inspection.status === 'PASS', 'rejected': ( inspection.status === 'FAIL')}">
+							{{inspection.status}}
+						</div>
+					</td>
+					<td>
+						{{inspection.qlsStatus}}
+					</td>
+				</tr>
+			</ng-template>
+		</p-table>
+
+		<div class="container">
+			<div class="gallery-left-content">
+				<span *ngIf="isFirstPage()"></span>
+				<button *ngIf="!isFirstPage()" pButton pRipple type="button" icon="pi pi-backward"
+					class="p-button-rounded p-button-outlined" (click)="galleryPrev()"></button>
+			</div>
+			<div class="gallery-middle-content">
+				<p-carousel [value]="inspections" #inspectionsCarousel (onPage)="setPage($event)">
+					<ng-template let-item pTemplate="item" let-i="index">
+						<div style="margin-top:10px;text-align:center;">
+							<span *ngIf="!item.picturePath">No Image URL</span>
+							<img *ngIf="item.picturePath" src="{{item.picturePath}}" height="700"
+								style="max-width:90%; width:auto; max-height:90%;" alt="inspection" />
+							<div class="carousel-caption" *ngIf="item.picturePath">
+								<a class="decorate-anchor-text" target="_blank" href="{{item.picturePath}}" download="inspectionImg"
+									rel="noopener">
+									<button pButton pRipple type="button" label="Download" class="p-button-success"></button>
+								</a>
+							</div>
+						</div>
+
+					</ng-template>
+				</p-carousel>
+			</div>
+			<div class="gallery-right-content">
+				<span *ngIf="isLastPage()"></span>
+				<button *ngIf="!isLastPage()" pButton pRipple type="button" icon="pi pi-forward"
+					class="p-button-rounded p-button-outlined" (click)="galleryNext()"></button>
+			</div>
+		</div>
+		<ng-template pTemplate="emptymessage">
+			<tr>
+				<td colspan="5"> {{ messageText }}</td>
+			</tr>
+		</ng-template>
+	</div>
+
+	<div *ngIf="!loadingData && showTable && !galleryView" class="card">
+		<div class="table-header">
+			<div class="left">
+				<div class="mb-3" *ngIf="!displayFailed">
+					<p-button type="button" icon="pi pi-chevron-left" (click)="prev()" [disabled]="isFirstPage() || displayFailed"
+						styleClass="p-button-text"></p-button>
+					<p-button type="button" icon="pi pi-refresh" (click)="reset()" styleClass="p-button-text"></p-button>
+					<p-button type="button" icon="pi pi-chevron-right" (click)="next()"
+						[disabled]="isLastPage()  || displayFailed" styleClass="p-button-text"></p-button>
+					<span class="rejected" *ngIf="compareError">Select maximum of 6 inspections to compare</span>
+				</div>
+			</div>
+			<div class="right">
+				<div class="export-buttons">
+					<button type="button" pButton pRipple icon="pi pi-file-excel" (click)="exportTo('XLS')"
+						class="p-button-success mr-2" pTooltip="Export to XLS" tooltipPosition="bottom"></button>
+				</div>
+			</div>
+		</div>
+
+		<p-table #pTable [value]="!displayFailed ? inspections : ( inspections | vinFilter: searchText)" [paginator]="false"
+			[rows]="10" (sortFunction)="customSort($event)" [customSort]="true" [scrollable]="true" scrollHeight="400px"
+			[showCurrentPageReport]="true" responsiveLayout="scroll"
+			currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+			[globalFilterFields]="['vin', 'inspections.vin']" [rowsPerPageOptions]="[25,50, 100]" *ngIf="!galleryView">
+
+			<ng-template pTemplate="header">
+				<tr style="height: 52px;">
+					<th id="inspections-table-compare-btn" style="max-width:110px;" class="custom-tr">
+						<button class="custom-btn" (click)="showMultipleInspection()" [hidden]="compareError">Compare</button>
+					</th>
+					<th id="inspections-table-compare-pic" class="custom-tr">Picture</th>
+					<th id="inspections-table-compare-station" class="custom-tr">Station</th>
+					<th id="inspections-table-compare-vin" class="custom-tr" pSortableColumn="vin">
+						<div class="p-d-flex p-jc-between p-ai-center">
+							VIN/CID
+							<SortAltIcon *ngIf="sortOrder === 0 || sortName !== 'vin'">
+								<span><i class="p-sortable-column-icon pi pi-fw pi-sort-alt" aria-hidden="true"></i></span>
+							</SortAltIcon>
+							<SortAmountUpAltIcon *ngIf="sortOrder === 1 && sortName === 'vin'"
+								[styleClass]="'p-sortable-column-icon'">
+								<span><i class="p-sortable-column-icon pi pi-fw pi-sort-amount-up-alt" aria-hidden="true"></i></span>
+							</SortAmountUpAltIcon>
+							<SortAmountDownIcon *ngIf="sortOrder === -1 && sortName === 'vin'"
+								[styleClass]="'p-sortable-column-icon'">
+								<span><i class="p-sortable-column-icon pi pi-fw pi-sort-amount-down" aria-hidden="true"></i></span>
+							</SortAmountDownIcon>
+							<p-columnFilter field="vin" matchMode="contains" [display]="'menu'" [showAddButton]="false"
+								[showMatchModes]="false" [showOperator]="false" [showClearButton]="false" [showApplyButton]="false">
+								<ng-template pTemplate="filter">
+									<input type="text" class="p-inputtext p-component p-element ng-star-inserted"
+										[(ngModel)]="selectedFilterValue" placeholder="Search Vin" (ngModelChange)="validate()" pInputText
+										[minLength]="7" [maxLength]="17">
+									<small *ngIf="!isFilterValueValid" class="p-invalid"><br />VIN must be between 7 and 17
+										characters.</small>
+									<div class="p-column-filter-buttonbar custom-column-filter ng-tns-c74-4 ng-star-inserted">
+										<button type="button"
+											class="p-element p-button-outlined p-button-sm ng-tns-c74-4 p-button p-component ng-star-inserted"
+											(click)="onClear()">
+											<span class="p-button-label">Clear</span></button>
+										<button type="button"
+											class="p-element p-button-sm ng-tns-c74-4 p-button p-component ng-star-inserted"
+											(click)="onFilterChange(selectedFilterValue, 'vin', '', '')">
+											<span class="p-button-label">Apply</span>
+										</button>
+									</div>
+								</ng-template>
+							</p-columnFilter>
+						</div>
+					</th>
+					<th id="inspections-table-compare-rotation-no" class="custom-tr">Rotation #</th>
+					<th id="inspections-table-compare-time" class="custom-tr" pSortableColumn="cycle_timestamp">
+						Time Stamp
+						<SortAltIcon *ngIf="sortOrder === 0 || sortName !== 'cycle_timestamp'">
+							<span><i class="p-sortable-column-icon pi pi-fw pi-sort-alt" aria-hidden="true"></i></span>
+						</SortAltIcon>
+						<SortAmountUpAltIcon *ngIf="sortOrder === 1 && sortName === 'cycle_timestamp'"
+							[styleClass]="'p-sortable-column-icon'">
+							<span><i class="p-sortable-column-icon pi pi-fw pi-sort-amount-up-alt" aria-hidden="true"></i></span>
+						</SortAmountUpAltIcon>
+						<SortAmountDownIcon *ngIf="sortOrder === -1 && sortName === 'cycle_timestamp'"
+							[styleClass]="'p-sortable-column-icon'">
+							<span><i class="p-sortable-column-icon pi pi-fw pi-sort-amount-down" aria-hidden="true"></i></span>
+						</SortAmountDownIcon>
+					</th>
+					<th id="inspections-table-compare-inspection" class="custom-tr" pSortableColumn="task_description">Inspection
+						<SortAltIcon *ngIf="sortOrder === 0 || sortName !== 'task_description'">
+							<span><i class="p-sortable-column-icon pi pi-fw pi-sort-alt" aria-hidden="true"></i></span>
+						</SortAltIcon>
+						<SortAmountUpAltIcon *ngIf="sortOrder === 1 && sortName === 'task_description'"
+							[styleClass]="'p-sortable-column-icon'">
+							<span><i class="p-sortable-column-icon pi pi-fw pi-sort-amount-up-alt" aria-hidden="true"></i></span>
+						</SortAmountUpAltIcon>
+						<SortAmountDownIcon *ngIf="sortOrder === -1 && sortName === 'task_description'"
+							[styleClass]="'p-sortable-column-icon'">
+							<span><i class="p-sortable-column-icon pi pi-fw pi-sort-amount-down" aria-hidden="true"></i></span>
+						</SortAmountDownIcon>
+					</th>
+					<th id="inspections-table-compare-status" class="custom-tr">
+						<div class="p-d-flex p-jc-between p-ai-center" pSortableColumn="status">
+							Status
+							<SortAltIcon *ngIf="sortOrder === 0 || sortName !== 'status'">
+								<span><i class="p-sortable-column-icon pi pi-fw pi-sort-alt" aria-hidden="true"></i></span>
+							</SortAltIcon>
+							<SortAmountUpAltIcon *ngIf="sortOrder === 1 && sortName === 'status'"
+								[styleClass]="'p-sortable-column-icon'">
+								<span><i class="p-sortable-column-icon pi pi-fw pi-sort-amount-up-alt" aria-hidden="true"></i></span>
+							</SortAmountUpAltIcon>
+							<SortAmountDownIcon *ngIf="sortOrder === -1 && sortName === 'status'"
+								[styleClass]="'p-sortable-column-icon'">
+								<span><i class="p-sortable-column-icon pi pi-fw pi-sort-amount-down" aria-hidden="true"></i></span>
+							</SortAmountDownIcon>
+							<p-columnFilter field="status" matchMode="equals" [display]="'menu'" [showAddButton]="false"
+								[showMatchModes]="false" [showOperator]="false" [showClearButton]="false" [showApplyButton]="false">
+								<ng-template pTemplate="filter" let-value let-filter="filterCallback">
+									<p-dropdown [ngModel]="value" [options]="statuses"
+										(onChange)="onFilterChange($event.value, 'status', '','')" placeholder="Select Status">
+										<ng-template let-option pTemplate="item">
+											<span>{{option.label}}</span>
+										</ng-template>
+									</p-dropdown>
+								</ng-template>
+							</p-columnFilter>
+						</div>
+					</th>
+					<th id="inspections-table-compare-qls" class="custom-tr">
+						<div class="p-d-flex p-jc-between p-ai-center" pSortableColumn="qlsStatus">
+							QLS
+							<SortAltIcon *ngIf="sortOrder === 0 || sortName !== 'qlsStatus'">
+								<span><i class="p-sortable-column-icon pi pi-fw pi-sort-alt" aria-hidden="true"></i></span>
+							</SortAltIcon>
+							<SortAmountUpAltIcon *ngIf="sortOrder === 1 && sortName === 'qlsStatus'"
+								[styleClass]="'p-sortable-column-icon'">
+								<span><i class="p-sortable-column-icon pi pi-fw pi-sort-amount-up-alt" aria-hidden="true"></i></span>
+							</SortAmountUpAltIcon>
+							<SortAmountDownIcon *ngIf="sortOrder === -1 && sortName === 'qlsStatus'"
+								[styleClass]="'p-sortable-column-icon'">
+								<span><i class="p-sortable-column-icon pi pi-fw pi-sort-amount-down" aria-hidden="true"></i></span>
+							</SortAmountDownIcon>
+							<p-columnFilter field="qlsStatus" matchMode="equals" [display]="'menu'" [showAddButton]="false"
+								[showMatchModes]="false" [showOperator]="false" [showClearButton]="false" [showApplyButton]="false">
+								<ng-template pTemplate="filter" let-value let-filter="filterCallback">
+									<p-dropdown [ngModel]="value" [options]="qlsStatuses"
+										(onChange)="onFilterChange($event.value, 'QLSSTATUS','','')" placeholder="Select QLS Status">
+										<ng-template let-option pTemplate="item">
+											<span>{{option.label}}</span>
+										</ng-template>
+									</p-dropdown>
+								</ng-template>
+							</p-columnFilter>
+						</div>
+					</th>
+				</tr>
+			</ng-template>
+			<ng-template pTemplate="body" let-inspection>
+				<tr>
+					<td style="max-width:100px;" class="custom-tr"><input type="checkbox"
+							(click)='addSelectedInspections(inspection, $event)' #compareCheckboxes /> </td>
+					<td>
+						<span *ngIf="!inspection.picturePath">No Image URL</span>
+						<a *ngIf="inspection.picturePath" href="javascript: void(0)" (click)="showDialog(inspection)">View</a>
+					</td>
+					<td>
+						{{inspection.station}}
+					</td>
+					<td>
+						{{inspection.vin}}
+					</td>
+					<td>
+						{{inspection.rotation}}
+					</td>
+					<td>
+						{{inspection.timestamp}}
+					</td>
+					<td>
+						{{inspection.inspection}}
+					</td>
+					<td>
+						<div [ngClass]="{'accepted': inspection.status === 'PASS', 'rejected': ( inspection.status === 'FAIL')}">
+							{{inspection.status}}
+						</div>
+					</td>
+					<td>
+						{{inspection.qlsStatus}}
+					</td>
+				</tr>
+			</ng-template>
+
+			<ng-template pTemplate="summary">
+				<div class="align-items-center justify-content-between" *ngIf="inspections.length > 0 && !displayFailed">
+					Displaying {{start}} - {{end}} <span
+						[ngClass]="{'accepted': getDisplayTypeText().toLowerCase() === 'passed'}"> {{ getDisplayTypeText() }}
+					</span> inspections out of {{totalRecords}}. Page {{pageNo}} out of {{getPageCount()}}.
+				</div>
+				<div class="align-items-center justify-content-between" *ngIf="inspections.length > 0 && displayFailed">
+					Displaying {{ failedCount }} <span
+						[ngClass]="{'rejected': getDisplayTypeText().toLowerCase() === 'failed' || getDisplayTypeText().toLowerCase() === 'qls failed'}">
+						{{ getDisplayTypeText() }} </span> inspections out of {{inspections.length}}. Page 1 out of 1.
+				</div>
+			</ng-template>
+			<ng-template pTemplate="emptymessage">
+				<tr>
+					<td colspan="5"> {{ messageText }}</td>
+				</tr>
+			</ng-template>
+		</p-table>
+	</div>
+	<div *ngIf="loadingData && (showTable || galleryView)" class="loading-container" data-title=".dot-pulse">
+		<div class="stage">
+			<div class="dot-pulse"></div>
+		</div>
+	</div>
+
+	<div *ngIf="compareView" id="selectedInspectionDialog" class="card">
+
+		<div class="container" *ngIf="compareView">
+			<div class="left-content">
+				<p>
+					<a href="javascript:void(0)" (click)="closeCompare()">Back to Inspections</a>
+				</p>
+			</div>
+			<div class="right-content">
+				<p class="toggle-inline">Gallery View</p>
+				<div class="toggle-btn toggle-inline">
+					<p-inputSwitch [(ngModel)]="compareGalleryView" style="width:60%" (onChange)="setCompareDisplayView($event)">
+					</p-inputSwitch>
+				</div>
+				<p class="toggle-inline">Table View</p>
+			</div>
+		</div>
+		<div style="margin-top:50px" *ngIf="compareGalleryView">
+			<p-table #pTable2 [value]="singleCompareArray" [paginator]="false" [showCurrentPageReport]="true">
+				<ng-template pTemplate="header">
+					<tr style="height: 52px;">
+						<th id="inspections-table-dialog-vin" class="custom-tr">VIN</th>
+						<th id="inspections-table-dialog-rotation" class="custom-tr">Rotation #</th>
+						<th id="inspections-table-dialog-timestamp" class="custom-tr">Time Stamp</th>
+						<th id="inspections-table-dialog-inspection" class="custom-tr">Inspection</th>
+						<th id="inspections-table-dialog-status" class="custom-tr">Status</th>
+						<th id="inspections-table-dialog-qls" class="custom-tr">QLS</th>
+					</tr>
+				</ng-template>
+				<ng-template pTemplate="body" let-inspection>
+					<tr>
+						<td>
+							{{inspection.vin}}
+						</td>
+						<td>
+							{{inspection.rotation}}
+						</td>
+						<td>
+							{{inspection.timestamp}}
+						</td>
+						<td>
+							{{inspection.inspection}}
+						</td>
+						<td>
+							<div [ngClass]="{'accepted': inspection.status === 'PASS', 'rejected': ( inspection.status === 'FAIL')}">
+								{{inspection.status}}
+							</div>
+						</td>
+						<td>
+							{{inspection.qlsStatus}}
+						</td>
+					</tr>
+				</ng-template>
+			</p-table>
+			<p-carousel [value]="inspectionData" (onPage)="setComparePage($event)">
+				<ng-template let-item pTemplate="item" let-i="index">
+					<div style="margin-top:50px;text-align:center;">
+						<span *ngIf="!item.picturePath">No Image URL</span>
+						<img *ngIf="item.picturePath" src="{{item.picturePath}}" style="height:500px;width:500px;"
+							alt="{{item.vin}}" />
+						<div class="carousel-caption" *ngIf="item.picturePath">
+							<a class="decorate-anchor-text" target="_blank" href="{{item.picturePath}}" download="inspectionImg"
+								rel="noopener">
+								<button pButton pRipple type="button" label="Download" class="p-button-success"></button>
+							</a>
+						</div>
+					</div>
+				</ng-template>
+			</p-carousel>
+		</div>
+		<div style="margin-top:50px" *ngIf="compareView && !compareGalleryView">
+			<div class="dialog-content-pad">
+				<div class="gallery-grid">
+					<figure class="gallery-frame" *ngFor="let img of inspectionData; let i = index">
+						<div *ngIf="img.picturePath">
+							<img src="{{img.picturePath}}" style="width: 250px; height: 250px;" alt="{{img.vin}}" title="{{img.vin}}">
+							<figcaption *ngIf="inspectionData?.length > 1" style="padding-right: 95%;font-weight: bold;">{{i + 1}}
+							</figcaption>
+							<figcaption>
+								<a class="decorate-anchor-text" target="_blank" href="{{img.picturePath}}" download="inspectionImg"
+									rel="noopener">
+									<button pButton pRipple type="button" label="Download" class="p-button-success"></button>
+								</a>
+							</figcaption>
+						</div>
+						<div *ngIf="!img.picturePath">
+							<figcaption *ngIf="inspectionData?.length > 1" style="padding-right: 95%;font-weight: bold;">{{i + 1}}
+							</figcaption>
+							<button pButton pRipple type="button" label="Image URL not available."
+								class="p-button-warning p-button-text"></button>
+						</div>
+					</figure>
+				</div>
+			</div>
+
+			<p-table #dt2 [value]="inspectionData" dataKey="id" [rows]="10" [showCurrentPageReport]="true"
+				styleClass="p-datatable-inspections"
+				currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+				[globalFilterFields]="['vin', 'rotation', 'timestamp', 'inspection', 'status']"
+				*ngIf="compareView && !compareGalleryView">
+
+				<ng-template pTemplate="header">
+					<tr>
+						<th id="inspections-table-dialog-no" class="custom-tr" *ngIf="inspectionData?.length > 1">#</th>
+						<th id="inspections-table-dialog-vin" class="custom-tr">VIN</th>
+						<th id="inspections-table-dialog-rotation" class="custom-tr">Rotation #</th>
+						<th id="inspections-table-dialog-timestamp" class="custom-tr">Time Stamp</th>
+						<th id="inspections-table-dialog-inspection" class="custom-tr">Inspection</th>
+						<th id="inspections-table-dialog-status" class="custom-tr">Status</th>
+						<th id="inspections-table-dialog-qls" class="custom-tr">QLS</th>
+					</tr>
+				</ng-template>
+				<ng-template pTemplate="body" let-inspection let-rowIndex="rowIndex">
+					<tr>
+						<td *ngIf="inspectionData?.length > 1"><strong>{{rowIndex + 1}}</strong></td>
+						<td>
+							{{inspection.vin}}
+						</td>
+						<td>
+							{{inspection.rotation}}
+						</td>
+						<td>
+							{{inspection.timestamp}}
+						</td>
+						<td>
+							{{inspection.inspection}}
+						</td>
+						<td>
+							<div [ngClass]="{'accepted': inspection.status === 'PASS', 'rejected': ( inspection.status === 'FAIL')}">
+								{{inspection.status}}
+							</div>
+						</td>
+						<td>
+							{{inspection.qlsStatus}}
+						</td>
+					</tr>
+				</ng-template>
+			</p-table>
+		</div>
+	</div>
+
+</section>
+
+
+<p-dialog [(visible)]="showExportDialog">
+	<p-header> Export to {{ exportFormat }} </p-header>
+	<div class="export-dialog-container" *ngIf="!isExporting">
+		<p> This will export the data to a <span class="p-text-secondary p-text-bold"> {{ exportFormat }} </span> file.
+			Click to Download</p>
+		<div class="modal-export-buttons">
+			<button pButton (click)="handleExport(false)" pRipple type="button" [label]="getCurrentButtonLabel()"
+				class="p-button-success"></button>
+			<button *ngIf="!displayFailed" pButton (click)="handleExportAll()" pRipple type="button"
+				[label]="getAllRecordsButtonLabel()" class="p-button-primary"></button>
+		</div>
+	</div>
+	<p class="p-ai-center" *ngIf="isExporting">Exporting {{exportCount}} records.</p>
+	<div *ngIf="isExporting" class="loading-container" data-title=".dot-pulse">
+		<div class="stage">
+			<div class="dot-pulse"></div>
+		</div>
+	</div>
+</p-dialog>
